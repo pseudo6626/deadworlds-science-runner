@@ -27,6 +27,9 @@ def test_supported_recipe_set_is_explicit():
         "m02_atmospheric_element_budget",
         "m02_redox_ratio_diagnostics",
         "m02_rock_metal_ice_composition",
+        "m03_capture_efficiency_sensitivity",
+        "m03_energy_channel_identifiability",
+        "m03_trophic_transfer_sensitivity",
         "m10_energy_lower_bound_ledger",
         "m10_energy_power_identifiability",
         "m10_measurement_formula_provenance",
@@ -239,6 +242,183 @@ def test_module2_phase_space_remains_unsupported_without_thermodynamic_dataset()
     spec["recipe_id"] = "m02_phase_space"
     with pytest.raises(UnsupportedRecipeError):
         plans_for_spec(spec)
+
+
+
+def _m03_fixture(recipe_id: str) -> dict:
+    source_kind = "derived_evidence" if recipe_id == "m03_energy_channel_identifiability" else "deterministic_diagnostic"
+    uncertainty = (
+        {"representation": "categorical_status", "meaning": "Identifiability status only."}
+        if recipe_id == "m03_energy_channel_identifiability"
+        else {"representation": "sensitivity_grid", "meaning": "Explicit assumption sensitivity only."}
+    )
+    spec = {
+        "spec_version": "deadworlds-figure-spec-v1",
+        "figure_id": f"ecological_energy:{recipe_id}:fixture",
+        "module_id": "03_ecological_energy_budgets",
+        "module_version": "deadworlds-ecological-energy-v1.0.2",
+        "recipe_id": recipe_id,
+        "title": recipe_id,
+        "purpose": "Module 3 conservative deterministic renderer regression fixture.",
+        "dimensionality": "2d",
+        "renderer": {"preferred": "matplotlib", "fallbacks": ["plotly"], "style_profile": "ecology_publication_v1"},
+        "data": {"source_kind": source_kind, "bindings": {}, "units_policy": "explicit_si_or_domain_standard"},
+        "axes": {"units_policy": "explicit_si_or_domain_standard"},
+        "uncertainty": uncertainty,
+        "epistemics": {
+            "method_ids": ["energy-balance-habitability-2007", "trophic-dynamics-1942"],
+            "assumptions": ["Fixture only; sensitivity cases are not inferred ecology."],
+            "blocked_if": [],
+            "precision_policy": "never_exceed_source_precision",
+        },
+        "outputs": ["svg", "png", "csv", "json"],
+        "provenance": {
+            "renderer_version_required": True,
+            "module_run_id_required": True,
+            "source_refs_required": True,
+            "module_run_id": "10000000-0000-4000-8000-000000000003",
+            "source_refs": ["fixture:ecology:m03"],
+        },
+    }
+
+    if recipe_id == "m03_capture_efficiency_sensitivity":
+        intercepted = 2.5e15
+        spec["data"]["bindings"] = {
+            "interceptedPowerW": intercepted,
+            "captureEfficiencySensitivity": [
+                {"assumedCaptureEfficiency": 0.001, "capturedPowerW": intercepted * 0.001, "semantics": "explicit sensitivity assumption only"},
+                {"assumedCaptureEfficiency": 0.01, "capturedPowerW": intercepted * 0.01, "semantics": "explicit sensitivity assumption only"},
+                {"assumedCaptureEfficiency": 0.1, "capturedPowerW": intercepted * 0.1, "semantics": "explicit sensitivity assumption only"},
+            ],
+            "actualCaptureEfficiency": None,
+            "productivityResult": None,
+            "biomassResult": None,
+        }
+    elif recipe_id == "m03_trophic_transfer_sensitivity":
+        rows = []
+        for eff in (0.05, 0.1, 0.2):
+            for level in range(1, 6):
+                rows.append({
+                    "transferEfficiency": eff,
+                    "trophicTransfers": level,
+                    "remainingFraction": round(eff ** level, 10),
+                    "semantics": "sensitivity only; not a universal trophic law",
+                })
+        spec["data"]["bindings"] = {
+            "trophicTransferSensitivity": rows,
+            "actualTrophicTransferEfficiency": None,
+        }
+    elif recipe_id == "m03_energy_channel_identifiability":
+        spec["data"]["bindings"] = {
+            "channelAssessment": [
+                {
+                    "channel": "phototrophy",
+                    "support_class": "plausible",
+                    "evidence_refs": ["derived:ecology:orbit_mean_toa_bolometric_irradiance"],
+                    "reasoning": "Bolometric stellar input is bounded; usable spectrum and capture remain unresolved.",
+                    "uncertainty": "No pigment/action-spectrum or surface transfer model.",
+                },
+                {
+                    "channel": "geochemical_redox",
+                    "support_class": "unresolved",
+                    "evidence_refs": [],
+                    "reasoning": "Element occurrence does not establish reactant activities or supply flux.",
+                    "uncertainty": "Chemical power cannot be calculated.",
+                },
+            ],
+            "blockedCalculations": [
+                {"quantity": "net_or_gross_primary_productivity", "reason": "usable energy capture and active area are not measured"},
+                {"quantity": "chemolithotrophic_power", "reason": "reactant activities and supply fluxes are not measured"},
+            ],
+        }
+    else:
+        raise ValueError(recipe_id)
+    return spec
+
+
+def test_module3_capture_efficiency_is_explicit_assumption_sensitivity():
+    plan = plans_for_spec(_m03_fixture("m03_capture_efficiency_sensitivity"))[0]
+    assert plan.kind == "line"
+    assert plan.series[0].x == [0.1, 1.0, 10.0]
+    assert plan.series[0].y == [2.5e12, 2.5e13, 2.5e14]
+    assert plan.x_scale == "log" and plan.y_scale == "log"
+    assert "not an inferred capture efficiency" in plan.note
+    assert "primary productivity" in plan.note
+
+
+def test_module3_capture_efficiency_rejects_productivity_result():
+    spec = _m03_fixture("m03_capture_efficiency_sensitivity")
+    spec["data"]["bindings"]["productivityResult"] = {"W_m2": 1.0}
+    with pytest.raises(FigureSpecError, match="productivity"):
+        validate_figure_spec(spec)
+
+
+def test_module3_capture_power_must_match_intercepted_power_times_assumption():
+    spec = _m03_fixture("m03_capture_efficiency_sensitivity")
+    spec["data"]["bindings"]["captureEfficiencySensitivity"][1]["capturedPowerW"] *= 2
+    with pytest.raises(FigureSpecError, match="inconsistent"):
+        plans_for_spec(spec)
+
+
+def test_module3_trophic_transfer_uses_existing_reference_cases_only():
+    plan = plans_for_spec(_m03_fixture("m03_trophic_transfer_sensitivity"))[0]
+    assert plan.kind == "line"
+    assert {s.label for s in plan.series} == {"5% reference case", "10% reference case", "20% reference case"}
+    assert all(s.x == [1, 2, 3, 4, 5] for s in plan.series)
+    assert plan.y_scale == "log"
+    assert "not a universal ecological law" in plan.note
+
+
+def test_module3_trophic_transfer_rejects_inferred_actual_efficiency():
+    spec = _m03_fixture("m03_trophic_transfer_sensitivity")
+    spec["data"]["bindings"]["actualTrophicTransferEfficiency"] = 0.12
+    with pytest.raises(FigureSpecError, match="actual trophic-transfer"):
+        validate_figure_spec(spec)
+
+
+def test_module3_energy_channel_identifiability_never_assigns_magnitudes():
+    plans = plans_for_spec(_m03_fixture("m03_energy_channel_identifiability"))
+    assert len(plans) == 2
+    status = next(p for p in plans if p.suffix == "energy_channel_status")
+    blocked = next(p for p in plans if p.suffix == "blocked_ecological_energy_quantities")
+    assert status.kind == "table"
+    assert status.table_rows[0][1] == "plausible"
+    assert "not a measured energy magnitude" in status.note
+    assert blocked.kind == "status_table"
+    assert all("BLOCKED:" in row[1] for row in blocked.table_rows)
+    assert "never means zero energy" in blocked.note
+
+
+def test_module3_energy_channel_rejects_unlicensed_numeric_magnitude():
+    spec = _m03_fixture("m03_energy_channel_identifiability")
+    spec["data"]["bindings"]["channelAssessment"][0]["power_w"] = 42.0
+    with pytest.raises(FigureSpecError, match="CHANNEL_MAGNITUDE"):
+        validate_figure_spec(spec)
+
+
+def test_module3_spatial_productivity_3d_remains_unsupported():
+    spec = _m03_fixture("m03_energy_channel_identifiability")
+    spec["recipe_id"] = "m03_spatial_productivity_map"
+    spec["dimensionality"] = "3d"
+    with pytest.raises(UnsupportedRecipeError):
+        plans_for_spec(spec)
+
+
+def test_module3_fixture_renders_deterministically(tmp_path):
+    spec = _m03_fixture("m03_capture_efficiency_sensitivity")
+    a = tmp_path / "a"
+    b = tmp_path / "b"
+    ma = render_figure_spec(spec, a, strict_provenance=True)
+    mb = render_figure_spec(spec, b, strict_provenance=True)
+
+    def file_hashes(manifest):
+        return {
+            (component["component"], file_info["name"]): file_info["sha256"]
+            for component in manifest["components"]
+            for file_info in component["files"]
+        }
+
+    assert file_hashes(ma) == file_hashes(mb)
 
 
 def test_module10_energy_ledger_uses_joule_values():

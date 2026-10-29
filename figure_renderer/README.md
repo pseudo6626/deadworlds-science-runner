@@ -1,4 +1,4 @@
-# Deadworlds Figure Renderer v0.4.0
+# Deadworlds Figure Renderer v0.5.0
 
 Deterministic static scientific renderer for the Deadworlds `deadworlds-figure-spec-v1` contract.
 
@@ -6,7 +6,7 @@ The renderer does not invent numeric plot data. Numeric values come only from `F
 
 ## Hosted recipe coverage
 
-Renderer v0.4.0 currently supports 17 hosted recipes across Modules 1, 2, 10, 12, and 15.
+Renderer v0.5.0 currently supports 20 hosted recipes across Modules 1, 2, 3, 10, 12, and 15.
 
 ### Module 1 — Atmospheric Evolution
 
@@ -23,6 +23,14 @@ These adapters preserve the distinction between deterministic sensitivity calcul
 - `m02_rock_metal_ice_composition`
 
 These adapters remain deliberately conservative. They do not convert broad DSS composition into mineralogy, measured atmospheric gas ratios into mantle oxygen fugacity, or incomplete atmospheric measurements into whole-planet inventories or aqueous pH.
+
+### Module 3 — Ecological Energy Budgets
+
+- `m03_capture_efficiency_sensitivity`
+- `m03_trophic_transfer_sensitivity`
+- `m03_energy_channel_identifiability`
+
+Module 3 renders only deterministic assumption sensitivities and evidence-status/identifiability information. Capture efficiency, actual trophic-transfer efficiency, productivity, biomass, and channel energy magnitudes remain unresolved unless independently measured or modeled by a later licensed analysis. The 3D spatial-productivity recipe remains unsupported until spatially resolved productivity evidence exists.
 
 ### Module 10 — Technological Energetics
 
@@ -58,7 +66,7 @@ The validated renderer stack is pinned in `RENDERER_CONSTRAINTS.txt`:
 
 SVG hash salt and export metadata are fixed. Regression tests require repeat renders of the same FigureSpec to produce identical output hashes.
 
-Renderer v0.4.0 has also been validated through the hosted path: Worker-issued immutable FigureSpec package, repository/workflow-bound GitHub OIDC, deterministic render, private Google Drive upload and verification, and idempotent Forge result submission. Final submission uses bounded retry for transient network/server failures so a lost response after a successful idempotent POST does not unnecessarily fail the hosted render.
+The hosted renderer path has been validated end to end: Worker-issued immutable FigureSpec package, repository/workflow-bound GitHub OIDC, deterministic render, private Google Drive upload and verification, and idempotent Forge result submission. Final submission uses bounded retry for transient network/server failures so a lost response after a successful idempotent POST does not unnecessarily fail the hosted render.
 
 ## Local use
 

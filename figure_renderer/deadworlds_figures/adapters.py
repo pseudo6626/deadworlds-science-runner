@@ -228,6 +228,162 @@ def redox_ratio_diagnostics(spec: dict[str, Any]) -> list[PlotPlan]:
     )]
 
 
+
+# ---------------- Module 3: Ecological Energy Budgets ----------------
+
+def capture_efficiency_sensitivity(spec: dict[str, Any]) -> list[PlotPlan]:
+    b = spec["data"]["bindings"]
+    intercepted = b.get("interceptedPowerW")
+    rows = b.get("captureEfficiencySensitivity") or []
+
+    if isinstance(intercepted, bool) or not isinstance(intercepted, (int, float)) or float(intercepted) <= 0:
+        raise FigureSpecError("capture-efficiency sensitivity requires positive interceptedPowerW")
+    if len(rows) < 2:
+        raise FigureSpecError("captureEfficiencySensitivity requires at least two explicit assumption rows")
+
+    points = []
+    for row in rows:
+        eff = row.get("assumedCaptureEfficiency")
+        power = row.get("capturedPowerW")
+        if isinstance(eff, bool) or not isinstance(eff, (int, float)) or not 0 < float(eff) <= 1:
+            raise FigureSpecError("capture-efficiency sensitivity contains an invalid assumed efficiency")
+        if isinstance(power, bool) or not isinstance(power, (int, float)) or float(power) < 0:
+            raise FigureSpecError("capture-efficiency sensitivity contains invalid captured power")
+        expected = float(intercepted) * float(eff)
+        tolerance = max(abs(expected) * 1e-9, 1e-9)
+        if abs(float(power) - expected) > tolerance:
+            raise FigureSpecError("captured-power sensitivity is inconsistent with intercepted power × assumed efficiency")
+        points.append((float(eff), float(power), dict(row)))
+
+    points.sort(key=lambda x: x[0])
+    return [PlotPlan(
+        suffix="capture_efficiency_sensitivity",
+        kind="line",
+        title=spec["title"],
+        x_label="Assumed biological capture efficiency (%)",
+        y_label="Captured stellar power (W)",
+        series=[LineSeries(
+            "Deterministic assumption sensitivity",
+            [100.0 * x[0] for x in points],
+            [x[1] for x in points],
+        )],
+        csv_rows=[x[2] for x in points],
+        note=(
+            "Each point is an explicit efficiency assumption applied to the measured/derived intercepted "
+            "bolometric stellar-power boundary. The curve is not an inferred capture efficiency, primary "
+            "productivity, biomass estimate, or probability distribution."
+        ),
+        x_scale="log",
+        y_scale="log" if all(x[1] > 0 for x in points) else "linear",
+    )]
+
+
+def trophic_transfer_sensitivity(spec: dict[str, Any]) -> list[PlotPlan]:
+    rows = spec["data"]["bindings"].get("trophicTransferSensitivity") or []
+    if not rows:
+        raise FigureSpecError("trophicTransferSensitivity is empty")
+
+    grouped: dict[float, list[dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        eff = row.get("transferEfficiency")
+        transfers = row.get("trophicTransfers")
+        remaining = row.get("remainingFraction")
+        if isinstance(eff, bool) or not isinstance(eff, (int, float)) or not 0 < float(eff) < 1:
+            raise FigureSpecError("trophic sensitivity contains invalid transfer efficiency")
+        if isinstance(transfers, bool) or not isinstance(transfers, int) or transfers < 1:
+            raise FigureSpecError("trophic sensitivity contains invalid transfer count")
+        if isinstance(remaining, bool) or not isinstance(remaining, (int, float)) or not 0 <= float(remaining) <= 1:
+            raise FigureSpecError("trophic sensitivity contains invalid remaining fraction")
+        expected = float(eff) ** int(transfers)
+        if abs(float(remaining) - expected) > max(2e-10, abs(expected) * 2e-8):
+            raise FigureSpecError("trophic sensitivity remaining fraction is inconsistent with efficiency^transfers")
+        grouped[float(eff)].append(dict(row))
+
+    series = []
+    csv_rows = []
+    for eff in sorted(grouped):
+        group = sorted(grouped[eff], key=lambda x: int(x["trophicTransfers"]))
+        series.append(LineSeries(
+            f"{eff * 100:g}% reference case",
+            [int(x["trophicTransfers"]) for x in group],
+            [float(x["remainingFraction"]) for x in group],
+        ))
+        csv_rows.extend(group)
+
+    return [PlotPlan(
+        suffix="trophic_transfer_sensitivity",
+        kind="line",
+        title=spec["title"],
+        x_label="Number of trophic transfers",
+        y_label="Remaining fraction of basal captured energy",
+        series=series,
+        csv_rows=csv_rows,
+        note=(
+            "Reference transfer-efficiency cases are sensitivity calculations only. They are not a universal "
+            "ecological law, an inferred food-web efficiency, or evidence for the number of trophic levels."
+        ),
+        y_scale="log",
+    )]
+
+
+def energy_channel_identifiability(spec: dict[str, Any]) -> list[PlotPlan]:
+    b = spec["data"]["bindings"]
+    channels = b.get("channelAssessment") or []
+    blocked = b.get("blockedCalculations") or []
+    plans: list[PlotPlan] = []
+
+    if channels:
+        columns = ["Energy channel", "Evidence status", "Evidence refs", "Reasoning", "Uncertainty"]
+        rows = []
+        csv_rows = []
+        for item in channels:
+            channel = _text(item.get("channel"))
+            status = _text(item.get("support_class"))
+            if channel == "UNRESOLVED" or status == "UNRESOLVED":
+                raise FigureSpecError("energy-channel assessment row lacks channel or support_class")
+            refs = [str(x) for x in (item.get("evidence_refs") or [])]
+            reasoning = _text(item.get("reasoning"))
+            uncertainty = _text(item.get("uncertainty"))
+            rows.append([channel, status, "; ".join(refs) or "NONE", reasoning, uncertainty])
+            csv_rows.append({
+                "channel": channel,
+                "support_class": status,
+                "evidence_refs": refs,
+                "reasoning": reasoning,
+                "uncertainty": uncertainty,
+            })
+        plans.append(_table(
+            "Basal energy-channel evidence status",
+            "energy_channel_status",
+            columns,
+            rows,
+            csv_rows,
+            note=(
+                "Support class is an evidence/identifiability status only. It is not a measured energy magnitude, "
+                "fractional contribution, productivity estimate, or ranking of ecological importance."
+            ),
+        ))
+
+    if blocked:
+        rows = []
+        for item in blocked:
+            quantity = _text(item.get("quantity"))
+            reason = _text(item.get("reason"))
+            if quantity == "UNRESOLVED":
+                raise FigureSpecError("blocked ecological calculation lacks quantity")
+            rows.append((quantity, f"BLOCKED: {reason}"))
+        plans.append(_status_table(
+            "Blocked ecological-energy quantities",
+            "blocked_ecological_energy_quantities",
+            rows,
+            note="BLOCKED means required evidence is absent or unresolved. It never means zero energy, zero biomass, or zero productivity.",
+        ))
+
+    if not plans:
+        raise FigureSpecError("energy-channel identifiability contains no channel statuses or blocked calculations")
+    return plans
+
+
 # ---------------- Module 10: Technological Energetics ----------------
 
 def energy_lower_bound_ledger(spec: dict[str, Any]) -> list[PlotPlan]:
@@ -568,6 +724,9 @@ _ADAPTERS: dict[str, Callable[[dict[str, Any]], list[PlotPlan]]] = {
     "m02_atmospheric_element_budget": atmospheric_element_budget,
     "m02_redox_ratio_diagnostics": redox_ratio_diagnostics,
     "m02_rock_metal_ice_composition": rock_metal_ice_composition,
+    "m03_capture_efficiency_sensitivity": capture_efficiency_sensitivity,
+    "m03_energy_channel_identifiability": energy_channel_identifiability,
+    "m03_trophic_transfer_sensitivity": trophic_transfer_sensitivity,
     "m10_energy_lower_bound_ledger": energy_lower_bound_ledger,
     "m10_energy_power_identifiability": energy_power_identifiability,
     "m10_process_trace_prerequisite_matrix": process_trace_prerequisite_matrix,
@@ -585,7 +744,7 @@ _ADAPTERS: dict[str, Callable[[dict[str, Any]], list[PlotPlan]]] = {
 def plans_for_spec(spec: dict[str, Any]) -> list[PlotPlan]:
     adapter = _ADAPTERS.get(spec["recipe_id"])
     if adapter is None:
-        raise UnsupportedRecipeError(f"recipe not implemented in renderer v0.4.0: {spec['recipe_id']}")
+        raise UnsupportedRecipeError(f"recipe not implemented in renderer v0.5.0: {spec['recipe_id']}")
     return adapter(spec)
 
 

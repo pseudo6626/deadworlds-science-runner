@@ -56,7 +56,7 @@ def validate_figure_spec(spec: dict[str, Any], *, strict_provenance: bool = True
         raise FigureSpecError(f"FigureSpec schema violation at {location}: {first.message}")
 
     if spec["dimensionality"] != "2d":
-        raise FigureSpecError("renderer v0.4.0 accepts only 2d FigureSpecs")
+        raise FigureSpecError("renderer v0.5.0 accepts only 2d FigureSpecs")
     renderer = spec["renderer"]
     if renderer["preferred"] != "matplotlib" and "matplotlib" not in renderer.get("fallbacks", []):
         raise FigureSpecError("FigureSpec has no licensed matplotlib renderer path")
@@ -110,6 +110,30 @@ def validate_figure_spec(spec: dict[str, Any], *, strict_provenance: bool = True
             normalized = re.sub(r"[^a-z0-9]+", "_", key.lower()).strip("_")
             if forbidden.search(normalized):
                 raise FigureSpecError(f"MODULE2_MANTLE_REDOX_FORBIDDEN: {path}")
+
+
+    if spec["recipe_id"] == "m03_capture_efficiency_sensitivity":
+        if (
+            bindings.get("actualCaptureEfficiency", None) is not None
+            or bindings.get("productivityResult", None) is not None
+            or bindings.get("biomassResult", None) is not None
+        ):
+            raise FigureSpecError("Module 3 capture sensitivity may not contain inferred capture efficiency, productivity, or biomass results")
+
+    if spec["recipe_id"] == "m03_trophic_transfer_sensitivity":
+        if bindings.get("actualTrophicTransferEfficiency", None) is not None:
+            raise FigureSpecError("Module 3 trophic sensitivity may not contain an inferred actual trophic-transfer efficiency")
+
+    if spec["recipe_id"] == "m03_energy_channel_identifiability":
+        forbidden = re.compile(
+            r"(?:power_w|energy_magnitude|fractional_contribution|relative_importance|actual_channel_power|"
+            r"primary_productivity|biomass_(?:inventory|density))",
+            re.IGNORECASE,
+        )
+        for path, key, _ in _walk(bindings.get("channelAssessment") or []):
+            normalized = re.sub(r"[^a-z0-9]+", "_", key.lower()).strip("_")
+            if forbidden.search(normalized):
+                raise FigureSpecError(f"MODULE3_CHANNEL_MAGNITUDE_FORBIDDEN: {path}")
 
     _finite_numbers(bindings)
     return spec
