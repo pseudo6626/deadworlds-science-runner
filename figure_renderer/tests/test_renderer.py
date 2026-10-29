@@ -21,6 +21,9 @@ def load(name: str):
 
 def test_supported_recipe_set_is_explicit():
     assert supported_recipes() == (
+        "m01_equilibrium_temperature_albedo_sensitivity",
+        "m01_escape_retention_sensitivity",
+        "m01_multistar_forcing_contributors",
         "m10_energy_lower_bound_ledger",
         "m10_energy_power_identifiability",
         "m10_measurement_formula_provenance",
@@ -99,6 +102,64 @@ def test_model15_validation_adapter_preserves_status_text():
     assert cells["ABC summary discrimination"] == "UNRESOLVED"
 
 
+
+def _m01_fixture(recipe_id: str) -> dict:
+    common = {
+        "spec_version": "deadworlds-figure-spec-v1", "figure_id": f"atmospheric_evolution:{recipe_id}:fixture",
+        "module_id": "01_atmospheric_evolution", "module_version": "deadworlds-atmospheric-evolution-v1.1.2", "recipe_id": recipe_id,
+        "title": recipe_id, "purpose": "Module 1 deterministic renderer regression fixture.", "dimensionality": "2d",
+        "renderer": {"preferred": "matplotlib", "fallbacks": ["plotly"], "style_profile": "planetary_science_publication_v1"},
+        "data": {"source_kind": "deterministic_diagnostic", "bindings": {}, "units_policy": "explicit_si_or_domain_standard"},
+        "axes": {"units_policy": "explicit_si_or_domain_standard"},
+        "uncertainty": {"representation": "sensitivity_grid", "meaning": "Explicit deterministic sensitivity fixture."},
+        "epistemics": {"method_ids": ["atmospheric-energy-balance"], "assumptions": ["Fixture only."], "blocked_if": [], "precision_policy": "never_exceed_source_precision"},
+        "outputs": ["svg", "png", "csv", "json"],
+        "provenance": {"renderer_version_required": True, "module_run_id_required": True, "source_refs_required": True, "module_run_id": "10000000-0000-4000-8000-000000000001", "source_refs": ["fixture:atmosphere:m01"]},
+    }
+    if recipe_id == "m01_equilibrium_temperature_albedo_sensitivity":
+        common["data"]["bindings"] = {"orbitMeanBolometricFluxSearth": 1.0, "equilibriumTemperatureSensitivity": [{"bondAlbedo": 0.0, "equilibriumTemperatureK": 278.3},{"bondAlbedo": 0.3, "equilibriumTemperatureK": 254.55856631},{"bondAlbedo": 0.6, "equilibriumTemperatureK": 221.32384382}]}
+    elif recipe_id == "m01_escape_retention_sensitivity":
+        rows = []
+        for species, values in {"H2": [44.0,22.0,11.0,5.5], "He": [88.0,44.0,22.0,11.0], "mean_atmosphere": [620.0,310.0,155.0,77.5]}.items():
+            for texo, value in zip([500.0,1000.0,2000.0,4000.0], values): rows.append({"species": species, "assumedExobaseTemperatureK": texo, "referenceJeansLambda": value})
+        common["data"]["bindings"] = {"referenceJeansSensitivity": rows, "escapeRateResult": None, "historyResult": None}
+    elif recipe_id == "m01_multistar_forcing_contributors":
+        common["uncertainty"] = {"representation": "envelope", "meaning": "Resolved contributor geometry."}
+        common["data"]["bindings"] = {"forcingCompleteness": "resolved", "combinedResolvedMeanBolometricFluxSearth": 0.93, "radiativeContributors": [{"starBodyId":0,"relation":"immediate_host","starClass":"G","resolved":True,"orbitMeanBolometricFluxSearth":0.75},{"starBodyId":2,"relation":"ancestral_star","starClass":"K","resolved":True,"orbitMeanBolometricFluxSearth":0.18},{"starBodyId":5,"relation":"unresolved_context","starClass":"M","resolved":False,"orbitMeanBolometricFluxSearth":None}]}
+    else: raise ValueError(recipe_id)
+    return common
+
+
+def test_module1_albedo_adapter_uses_existing_diagnostic_rows():
+    plan = plans_for_spec(_m01_fixture("m01_equilibrium_temperature_albedo_sensitivity"))[0]
+    assert plan.kind == "line" and plan.series[0].x == [0.0,0.3,0.6]
+    assert plan.series[0].y == [278.3,254.55856631,221.32384382]
+    assert "not measured surface temperature" in plan.note
+
+
+def test_module1_escape_adapter_is_sensitivity_not_rate_or_history():
+    plan = plans_for_spec(_m01_fixture("m01_escape_retention_sensitivity"))[0]
+    assert plan.x_label == "Assumed exobase temperature (K)" and plan.y_label == "Reference Jeans λ (dimensionless)"
+    assert {s.label for s in plan.series} == {"H2","He","mean_atmosphere"}
+    assert all(s.x == [500.0,1000.0,2000.0,4000.0] for s in plan.series)
+    assert "not an inferred Jeans parameter" in plan.note and "escape rate" in plan.note and "atmospheric-loss history" in plan.note
+
+
+def test_module1_multistar_keeps_contributors_separate_and_never_zero_fills():
+    plan = plans_for_spec(_m01_fixture("m01_multistar_forcing_contributors"))[0]
+    assert plan.kind == "barh" and plan.series[0].y == [0.75,0.18]
+    assert "Unresolved contributors are omitted, never plotted as zero" in plan.note
+
+
+def test_module1_3d_geometry_remains_unsupported():
+    spec = _m01_fixture("m01_multistar_forcing_contributors"); spec["recipe_id"] = "m01_orbital_irradiation_geometry_3d"; spec["dimensionality"] = "3d"
+    with pytest.raises(UnsupportedRecipeError): plans_for_spec(spec)
+
+
+def test_module1_escape_rejects_actual_rate_or_history_results():
+    spec = _m01_fixture("m01_escape_retention_sensitivity"); spec["data"]["bindings"]["escapeRateResult"] = {"kg_s": 1.0}
+    with pytest.raises(FigureSpecError, match="rate/history"): validate_figure_spec(spec)
+
 def test_module10_energy_ledger_uses_joule_values():
     plans = plans_for_spec(load("m10_energy_lower_bound_ledger.json"))
     assert len(plans) == 1
@@ -158,7 +219,7 @@ def test_model15_status_table_renders(tmp_path):
 
 def test_unsupported_recipe_fails_closed():
     spec = load("m12_trait_frequency.json")
-    spec["recipe_id"] = "m01_equilibrium_temperature_albedo_sensitivity"
+    spec["recipe_id"] = "m99_not_implemented"
     with pytest.raises(UnsupportedRecipeError):
         plans_for_spec(spec)
 
