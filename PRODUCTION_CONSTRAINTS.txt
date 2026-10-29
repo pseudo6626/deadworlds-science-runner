@@ -1,44 +1,9 @@
-Deadworlds Science Runner — production constraints
-==================================================
-
-1. Scientific contract
-- Worker-issued immutable compute packages only.
-- Recompute Worker SHA-256 hashes before any scientific compute.
-- Full draw artifacts stay outside D1; only validated compact diagnostics are submitted.
-- No model winner, preferred-model field, truth probability, hidden-canon label, or cognition/history claim may be emitted by raw compute.
-- Model-conditional parameters are not direct observations of cultural mechanisms.
-
-2. Cultural Transmission closed-state backend
-- One independently coded trait family per comparison group.
-- At least four ordered phases and three transition-validation folds.
-- Recovered frequencies are samples, not living-population prevalence.
-- Zero-to-positive state appearances are blocked upstream; v1 closed-state models do not invent an innovation/pseudocount process.
-- Validation units are adjacent phase transitions.
-- Neutral backend: cultural_neutral_copying_v1, fixed predictive, b = 0.
-- Frequency backend: cultural_frequency_dependent_grid_v1, grid Bayes, pi_i proportional to p_i^(1-b).
-- Convention: b < 0 weights common variants more strongly; b > 0 weights rarer variants more strongly.
-- Exact-grid is the default production backend.
-- PyMC plugin pymc_cultural_frequency_dependent_v1 is an optional equivalent backend only when explicitly selected by Forge.
-- Relative predictive performance is not model truth or direct evidence of conformity/anti-conformity.
-
-3. PyMC runtime
-- Python 3.12+
-- PyMC 6.x
-- ArviZ 1.x
-- NumPy 2.x
-- h5netcdf/h5py available for ARVIZ_INFERENCE_DATA_NETCDF output.
-- Production policy: 4 chains, 1000 posterior draws, 1000 tune draws, b prior [-0.5, 0.5].
-- Ordinary scientific jobs report SBC as NOT_RUN. SBC is a separate inference-implementation validation exercise and never scientific model validation.
-
-4. Transport
-- Use X-Deadworlds-Capability for one-job lease/submission capabilities.
-- Google Drive resumable upload through Forge/private storage broker only.
-- Verify local SHA-256 before upload and Google Drive SHA-256 after upload.
-- Never log capability values or the Drive resumable session URI.
-- Maximum artifact size is enforced by Forge/storage broker (currently 512 MiB).
-
-5. GitHub Actions
-- Workflow is repository_dispatch-only for deadworlds-compute-v1.
-- permissions: contents: read, id-token: write.
-- No Forge credential is stored in GitHub.
-- GitHub OIDC audience is deadworlds-compute; Forge verifies repository/repository-id/owner-id/workflow-ref/ref/event/runner environment and signature before issuing a one-job capability.
+# Exact scientific runtime validated during Deadworlds PyMC parity/SBC/E2E, 2026-10-28
+numpy==2.1.3
+pymc==6.3.2
+pytensor==3.3.4
+arviz==1.1.0
+arviz-stats==1.1.0
+xarray==2025.12.0
+h5netcdf==1.8.1
+h5py==3.14.0
