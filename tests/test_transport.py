@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import socket
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
@@ -20,6 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 class Handler(BaseHTTPRequestHandler):
     artifact = b""
     submitted = None
+    submit_attempts = 0
 
     def _json(self, payload, status=200):
         data = json.dumps(payload).encode()
@@ -35,11 +37,24 @@ class Handler(BaseHTTPRequestHandler):
         body = json.loads(self.rfile.read(n))
         assert self.headers.get("X-Deadworlds-Capability") == "smoke-token"
         if self.path == "/submit":
+            Handler.submit_attempts += 1
             Handler.submitted = body
             assert body["transport"]["provider"] == "GOOGLE_DRIVE_RESUMABLE"
             assert body["transport"]["mime_type"] == "application/octet-stream"
             assert body["transport"]["file_name"] == "draws.npz"
             assert "_result_path" not in body
+
+            # Simulate the observed failure class: the server may accept an
+            # idempotent POST but the connection can die before the runner
+            # receives the response. A retry must safely recover.
+            if Handler.submit_attempts == 1:
+                try:
+                    self.connection.shutdown(socket.SHUT_RDWR)
+                except OSError:
+                    pass
+                self.connection.close()
+                return
+
             self._json({"ok": True, "status": "COMPLETE", "compute_job_id": "smoke-job"})
             return
         sha = body["artifact_sha256"]
@@ -75,6 +90,7 @@ class Handler(BaseHTTPRequestHandler):
 def test_transport_round_trip(tmp_path):
     Handler.artifact = b""
     Handler.submitted = None
+    Handler.submit_attempts = 0
     package = json.loads((ROOT / "examples" / "worker_issued_smoke_job.json").read_text())
     server = HTTPServer(("127.0.0.1", 0), Handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -103,8 +119,13 @@ def test_transport_round_trip(tmp_path):
         assert Handler.artifact == artifact.read_bytes()
 
         result = execute(bundle.job, tmp_path / "run", transport=bundle.transport)
-        submitted = submit_compute_result(bundle.submission, result)
+        submitted = submit_compute_result(
+            bundle.submission,
+            result,
+            backoff_seconds=0.01,
+        )
         assert submitted["status"] == "COMPLETE"
+        assert Handler.submit_attempts == 2
         assert Handler.submitted["artifact_ref"] == "gdrive://drive-smoke-file"
         assert Handler.submitted["transport"]["sha256_checksum"] == Handler.submitted["artifact_sha256"]
         assert Handler.submitted["transport"]["mime_type"] == "application/octet-stream"

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import mimetypes
+import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -292,20 +293,72 @@ def submit_compute_result(
     result: dict[str, Any],
     *,
     timeout: int = 60,
+    max_attempts: int = 3,
+    backoff_seconds: float = 2.0,
 ) -> dict[str, Any]:
+    # Forge's compute submit endpoint is idempotent for a completed job.
+    # Retrying an identical payload is safe when a transient transport/server
+    # failure prevents the runner from receiving the reply.
+    if max_attempts < 1:
+        raise ValueError("max_attempts must be at least 1")
+    if backoff_seconds < 0:
+        raise ValueError("backoff_seconds must be non-negative")
+
     payload = {k: v for k, v in result.items() if not str(k).startswith("_")}
-    req = urllib.request.Request(
-        capability.url,
-        data=json.dumps(payload, separators=(",", ":"), ensure_ascii=False).encode("utf-8"),
-        method="POST",
-        headers={
-            "X-Deadworlds-Capability": capability.token,
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-            "User-Agent": USER_AGENT,
-        },
-    )
-    response = _request_json(req, timeout=timeout)
-    if response.get("ok") is not True or response.get("status") != "COMPLETE":
-        raise RuntimeError(f"Forge rejected compute result: {response}")
-    return response
+    body = json.dumps(
+        payload,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode("utf-8")
+    transient_http = {500, 502, 503, 504}
+
+    for attempt in range(max_attempts):
+        req = urllib.request.Request(
+            capability.url,
+            data=body,
+            method="POST",
+            headers={
+                "X-Deadworlds-Capability": capability.token,
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "User-Agent": USER_AGENT,
+            },
+        )
+
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as response:
+                raw = response.read()
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode("utf-8", "replace")
+            if exc.code in transient_http and attempt + 1 < max_attempts:
+                time.sleep(backoff_seconds * (2**attempt))
+                continue
+            raise RuntimeError(
+                f"HTTP {exc.code} from {capability.url}: {detail[:1000]}"
+            ) from exc
+        except (urllib.error.URLError, ConnectionResetError, TimeoutError, OSError) as exc:
+            if attempt + 1 < max_attempts:
+                time.sleep(backoff_seconds * (2**attempt))
+                continue
+            raise RuntimeError(
+                f"Network error submitting compute result to {capability.url}: {exc}"
+            ) from exc
+
+        if not raw:
+            response_payload: dict[str, Any] = {}
+        else:
+            try:
+                response_payload = json.loads(raw)
+            except json.JSONDecodeError as exc:
+                raise RuntimeError(
+                    f"Expected JSON from {capability.url}, got {raw[:200]!r}"
+                ) from exc
+
+        if (
+            response_payload.get("ok") is not True
+            or response_payload.get("status") != "COMPLETE"
+        ):
+            raise RuntimeError(f"Forge rejected compute result: {response_payload}")
+        return response_payload
+
+    raise RuntimeError("Transient compute-result submission retries exhausted")
