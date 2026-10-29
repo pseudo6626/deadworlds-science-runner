@@ -56,7 +56,7 @@ def validate_figure_spec(spec: dict[str, Any], *, strict_provenance: bool = True
         raise FigureSpecError(f"FigureSpec schema violation at {location}: {first.message}")
 
     if spec["dimensionality"] != "2d":
-        raise FigureSpecError("renderer v0.2.0 accepts only 2d FigureSpecs")
+        raise FigureSpecError("renderer v0.3.0 accepts only 2d FigureSpecs")
     renderer = spec["renderer"]
     if renderer["preferred"] != "matplotlib" and "matplotlib" not in renderer.get("fallbacks", []):
         raise FigureSpecError("FigureSpec has no licensed matplotlib renderer path")
@@ -85,6 +85,15 @@ def validate_figure_spec(spec: dict[str, Any], *, strict_provenance: bool = True
     if spec["recipe_id"] == "m12a_transmission_model_identifiability":
         if bindings.get("modelComparisonResult", None) is not None:
             raise FigureSpecError("Module 12 identifiability figure may not contain model-comparison results")
+
+    if spec["recipe_id"] == "m01_escape_retention_sensitivity":
+        if bindings.get("escapeRateResult", None) is not None or bindings.get("historyResult", None) is not None:
+            raise FigureSpecError("Module 1 retention sensitivity may not contain an escape rate/history result")
+        forbidden = re.compile(r"(?:^|_)(?:escape_rate|mass_loss_rate|historical_loss|atmospheric_loss_history)(?:_|$)", re.IGNORECASE)
+        for path, key, _ in _walk(bindings):
+            normalized = re.sub(r"[^a-z0-9]+", "_", key.lower()).strip("_")
+            if forbidden.search(normalized):
+                raise FigureSpecError(f"MODULE1_ESCAPE_RATE_HISTORY_FORBIDDEN: {path}")
 
     _finite_numbers(bindings)
     return spec
