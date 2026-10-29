@@ -125,7 +125,7 @@ def test_module10_radiative_capture_null_is_not_plotted_as_zero():
 def test_module10_provenance_preserves_formula_and_inputs():
     plan = plans_for_spec(load("m10_measurement_formula_provenance.json"))[0]
     assert plan.kind == "table"
-    assert "E_min = m g |Îh|" in plan.table_rows[0]
+    assert "E_min = m g |Δh|" in plan.table_rows[0]
     assert any("mass_kg=250.0 kg" in cell for cell in plan.table_rows[0])
 
 
