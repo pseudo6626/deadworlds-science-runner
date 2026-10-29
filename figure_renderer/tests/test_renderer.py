@@ -24,6 +24,9 @@ def test_supported_recipe_set_is_explicit():
         "m01_equilibrium_temperature_albedo_sensitivity",
         "m01_escape_retention_sensitivity",
         "m01_multistar_forcing_contributors",
+        "m02_atmospheric_element_budget",
+        "m02_redox_ratio_diagnostics",
+        "m02_rock_metal_ice_composition",
         "m10_energy_lower_bound_ledger",
         "m10_energy_power_identifiability",
         "m10_measurement_formula_provenance",
@@ -159,6 +162,84 @@ def test_module1_3d_geometry_remains_unsupported():
 def test_module1_escape_rejects_actual_rate_or_history_results():
     spec = _m01_fixture("m01_escape_retention_sensitivity"); spec["data"]["bindings"]["escapeRateResult"] = {"kg_s": 1.0}
     with pytest.raises(FigureSpecError, match="rate/history"): validate_figure_spec(spec)
+
+
+
+def _m02_fixture(recipe_id: str) -> dict:
+    source_kind = "measured_evidence" if recipe_id == "m02_rock_metal_ice_composition" else "deterministic_diagnostic"
+    spec = {
+        "spec_version": "deadworlds-figure-spec-v1",
+        "figure_id": f"geochemical_cycling:{recipe_id}:fixture",
+        "module_id": "02_geochemical_cycling",
+        "module_version": "deadworlds-geochemical-cycling-v1.0.1",
+        "recipe_id": recipe_id,
+        "title": recipe_id,
+        "purpose": "Module 2 deterministic renderer regression fixture.",
+        "dimensionality": "2d",
+        "renderer": {"preferred": "matplotlib", "fallbacks": ["plotly"], "style_profile": "geochemistry_publication_v1"},
+        "data": {"source_kind": source_kind, "bindings": {}, "units_policy": "explicit_si_or_domain_standard"},
+        "axes": {"units_policy": "explicit_si_or_domain_standard"},
+        "uncertainty": {"representation": "none", "meaning": "Measured or deterministic bookkeeping fixture."},
+        "epistemics": {"method_ids": ["mantle-redox-2025"], "assumptions": ["Fixture only."], "blocked_if": [], "precision_policy": "never_exceed_source_precision"},
+        "outputs": ["svg", "png", "csv", "json"],
+        "provenance": {"renderer_version_required": True, "module_run_id_required": True, "source_refs_required": True, "module_run_id": "10000000-0000-4000-8000-000000000002", "source_refs": ["fixture:geochemistry:m02"]},
+    }
+    if recipe_id == "m02_rock_metal_ice_composition":
+        spec["data"]["bindings"] = {"solidComposition": [
+            {"name": "Rock", "fraction": 0.62, "reported": 62.0, "basis": "explicit_percent_or_share"},
+            {"name": "Metal", "fraction": 0.28, "reported": 28.0, "basis": "explicit_percent_or_share"},
+            {"name": "Ice", "fraction": 0.10, "reported": 10.0, "basis": "explicit_percent_or_share"},
+        ]}
+    elif recipe_id == "m02_atmospheric_element_budget":
+        spec["data"]["bindings"] = {"recognizedMoleFraction": 0.99, "elements": [
+            {"element": "C", "moles_per_mole_atmosphere": 0.50, "mass_kg_per_mole_atmosphere": 0.00600535},
+            {"element": "O", "moles_per_mole_atmosphere": 1.00, "mass_kg_per_mole_atmosphere": 0.0159994},
+            {"element": "N", "moles_per_mole_atmosphere": 0.98, "mass_kg_per_mole_atmosphere": 0.013726566},
+        ]}
+    elif recipe_id == "m02_redox_ratio_diagnostics":
+        spec["data"]["bindings"] = {"gasRedoxRatios": [
+            {"label": "CO2/CO", "numerator": "carbon dioxide", "denominator": "carbon monoxide", "ratio": 100.0, "log10_ratio": 2.0, "basis": "measured present atmospheric mole/volume fractions"},
+            {"label": "H2O/H2", "numerator": "water", "denominator": "hydrogen", "ratio": 0.1, "log10_ratio": -1.0, "basis": "measured present atmospheric mole/volume fractions"},
+        ], "mantleOxygenFugacity": None, "redoxBufferOffset": None, "aqueousPh": None}
+    else:
+        raise ValueError(recipe_id)
+    return spec
+
+
+def test_module2_composition_uses_only_broad_dss_classes():
+    plan = plans_for_spec(_m02_fixture("m02_rock_metal_ice_composition"))[0]
+    assert plan.kind == "barh"
+    assert plan.series[0].y == [0.62, 0.28, 0.10]
+    assert "not a mineral assemblage" in plan.note
+
+
+def test_module2_element_budget_uses_stoichiometric_atmospheric_bookkeeping():
+    plan = plans_for_spec(_m02_fixture("m02_atmospheric_element_budget"))[0]
+    assert plan.kind == "barh"
+    assert plan.series[0].y == [0.50, 1.00, 0.98]
+    assert "recognized-gas coverage" in plan.note
+    assert "not a whole-planet elemental inventory" in plan.note
+
+
+def test_module2_redox_ratio_uses_log10_present_atmosphere_only():
+    plan = plans_for_spec(_m02_fixture("m02_redox_ratio_diagnostics"))[0]
+    assert plan.series[0].y == [2.0, -1.0]
+    assert "not mantle oxygen fugacity" in plan.note
+
+
+def test_module2_redox_ratio_rejects_mantle_fo2_result():
+    spec = _m02_fixture("m02_redox_ratio_diagnostics")
+    spec["data"]["bindings"]["mantleOxygenFugacity"] = {"delta_fmq": 1.0}
+    with pytest.raises(FigureSpecError, match="mantle"):
+        validate_figure_spec(spec)
+
+
+def test_module2_phase_space_remains_unsupported_without_thermodynamic_dataset():
+    spec = _m02_fixture("m02_atmospheric_element_budget")
+    spec["recipe_id"] = "m02_phase_space"
+    with pytest.raises(UnsupportedRecipeError):
+        plans_for_spec(spec)
+
 
 def test_module10_energy_ledger_uses_joule_values():
     plans = plans_for_spec(load("m10_energy_lower_bound_ledger.json"))
