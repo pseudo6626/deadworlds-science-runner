@@ -6,6 +6,7 @@ import json
 import os
 import re
 import shutil
+import time
 import urllib.error
 import urllib.request
 import zipfile
@@ -29,24 +30,41 @@ def sha256_json(value: object) -> str:
     return sha256_bytes(raw)
 
 
-def post_json(url: str, payload: dict, capability: str) -> dict:
+def post_json(
+    url: str,
+    payload: dict,
+    capability: str,
+    *,
+    retry_transient: bool = False,
+) -> dict:
     body = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-    req = urllib.request.Request(
-        url,
-        data=body,
-        method="POST",
-        headers={
-            "Content-Type": "application/json",
-            "User-Agent": USER_AGENT,
-            "X-Deadworlds-Capability": capability,
-        },
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=90) as resp:
-            return json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"HTTP {exc.code} from {url}: {detail[:3000]}") from exc
+    attempts = 3 if retry_transient else 1
+    for attempt in range(attempts):
+        req = urllib.request.Request(
+            url,
+            data=body,
+            method="POST",
+            headers={
+                "Content-Type": "application/json",
+                "User-Agent": USER_AGENT,
+                "X-Deadworlds-Capability": capability,
+            },
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=90) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode("utf-8", errors="replace")
+            if retry_transient and exc.code in {500, 502, 503, 504} and attempt + 1 < attempts:
+                time.sleep(2 ** attempt)
+                continue
+            raise RuntimeError(f"HTTP {exc.code} from {url}: {detail[:3000]}") from exc
+        except (urllib.error.URLError, ConnectionResetError, TimeoutError, OSError) as exc:
+            if retry_transient and attempt + 1 < attempts:
+                time.sleep(2 ** attempt)
+                continue
+            raise RuntimeError(f"Transport failure submitting to {url}: {exc}") from exc
+    raise RuntimeError(f"Transient submission retries exhausted for {url}")
 
 
 def deterministic_zip(source_dir: Path, output_path: Path) -> None:
@@ -184,6 +202,7 @@ def main() -> int:
             },
         },
         submission["token"],
+        retry_transient=True,
     )
     if not result.get("ok") or result.get("status") != "COMPLETE":
         raise SystemExit(f"Forge rejected render result: {result}")
