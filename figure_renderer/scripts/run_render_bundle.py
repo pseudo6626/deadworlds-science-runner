@@ -17,7 +17,7 @@ from deadworlds_figures.render import render_figure_spec
 USER_AGENT = f"deadworlds-figure-renderer/{renderer_version}"
 PACKAGE_VERSION = "deadworlds-figure-render-job-v0.2.0"
 BUNDLE_VERSION = "deadworlds-figure-render-bundle-v0.2.0"
-EXPECTED_RENDERER = "deadworlds-figure-renderer-v0.2.1"
+EXPECTED_RENDERER = "deadworlds-figure-renderer-v0.3.0"
 
 
 def sha256_bytes(data: bytes) -> str:
