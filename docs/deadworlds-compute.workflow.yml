@@ -1,0 +1,47 @@
+name: Deadworlds scientific compute
+
+on:
+  repository_dispatch:
+    types: [deadworlds-compute-v1]
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deadworlds-compute-${{ github.event.client_payload.compute_job_id }}
+  cancel-in-progress: false
+
+jobs:
+  compute:
+    if: github.event.client_payload.compute_job_id != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      DEADWORLDS_FORGE_BASE: https://deadworlds-forge-sandbox.pseudonymous-cypher.workers.dev
+      DEADWORLDS_COMPUTE_JOB_ID: ${{ github.event.client_payload.compute_job_id }}
+      PYTHONUNBUFFERED: '1'
+
+    steps:
+      - name: Check out immutable workflow source
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install runner and PyMC backend
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[pymc,dev]'
+
+      - name: Verify deterministic contract tests
+        run: python -m pytest -q
+
+      - name: Claim Worker-issued job with GitHub OIDC
+        run: python -m deadworlds_compute.github_action
+
+      - name: Execute, upload scientific artifact, and submit result
+        run: deadworlds-compute run compute-bundle.json --out deadworlds-compute-output
