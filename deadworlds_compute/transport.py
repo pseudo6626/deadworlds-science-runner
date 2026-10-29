@@ -11,6 +11,7 @@ from typing import Any
 from .contracts import ComputeJob, sha256_file
 
 TRANSPORT_VERSION = "deadworlds-compute-transport-v0.2.0"
+USER_AGENT = "deadworlds-science-runner/0.9.0"
 
 
 @dataclass(frozen=True)
@@ -91,6 +92,7 @@ def request_drive_upload_lease(
             "X-Deadworlds-Capability": capability.lease_token,
             "Content-Type": "application/json",
             "Accept": "application/json",
+            "User-Agent": USER_AGENT,
         },
     )
     lease = _request_json(req, timeout=timeout)
@@ -124,6 +126,7 @@ def _drive_put(
             "Content-Length": str(len(data)),
             "Content-Range": content_range,
             "Accept": "application/json",
+            "User-Agent": USER_AGENT,
         },
     )
     try:
@@ -299,6 +302,7 @@ def submit_compute_result(
             "X-Deadworlds-Capability": capability.token,
             "Content-Type": "application/json",
             "Accept": "application/json",
+            "User-Agent": USER_AGENT,
         },
     )
     response = _request_json(req, timeout=timeout)
