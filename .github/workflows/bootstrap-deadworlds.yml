@@ -44,9 +44,11 @@ jobs:
           set -euo pipefail
           expected=".github/workflows/bootstrap-deadworlds.yml"
 
-          # Intended starting state: an otherwise-empty repository containing
-          # only this bootstrap workflow.
-          unexpected="$(git ls-files | grep -Fvx "$expected" || true)"
+          # Intended starting state: this bootstrap workflow, with an optional
+          # GitHub-created README.md. Refuse to overwrite anything else.
+          unexpected="$(
+            git ls-files               | grep -Fvx "$expected"               | grep -Fvx "README.md"               || true
+          )"
           if [[ -n "$unexpected" ]]; then
             echo "::error::Refusing to bootstrap over unexpected tracked files:"
             printf '%s\n' "$unexpected"
