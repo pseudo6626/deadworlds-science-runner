@@ -7,7 +7,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-USER_AGENT = "deadworlds-figure-renderer/0.3.0"
+USER_AGENT = "deadworlds-figure-renderer/0.4.0"
 ALLOWED_FORGE_BASES = {
     "https://deadworlds-forge-sandbox.pseudonymous-cypher.workers.dev",
     "https://deadworlds-forge.pseudonymous-cypher.workers.dev",
