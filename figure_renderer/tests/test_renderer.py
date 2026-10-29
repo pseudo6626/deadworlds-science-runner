@@ -15,6 +15,16 @@ from deadworlds_figures.validate import validate_figure_spec
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def test_renderer_version_identity_is_consistent():
+    from deadworlds_figures import __version__ as package_version
+    from deadworlds_figures.schema import RENDERER_VERSION
+
+    expected = f"deadworlds-figure-renderer-v{package_version}"
+    assert package_version == "0.5.0"
+    assert RENDERER_VERSION == expected
+
+
+
 def load(name: str):
     return json.loads((ROOT / "examples" / name).read_text(encoding="utf-8"))
 
