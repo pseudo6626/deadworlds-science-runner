@@ -56,7 +56,7 @@ def validate_figure_spec(spec: dict[str, Any], *, strict_provenance: bool = True
         raise FigureSpecError(f"FigureSpec schema violation at {location}: {first.message}")
 
     if spec["dimensionality"] != "2d":
-        raise FigureSpecError("renderer v0.3.0 accepts only 2d FigureSpecs")
+        raise FigureSpecError("renderer v0.4.0 accepts only 2d FigureSpecs")
     renderer = spec["renderer"]
     if renderer["preferred"] != "matplotlib" and "matplotlib" not in renderer.get("fallbacks", []):
         raise FigureSpecError("FigureSpec has no licensed matplotlib renderer path")
@@ -94,6 +94,22 @@ def validate_figure_spec(spec: dict[str, Any], *, strict_provenance: bool = True
             normalized = re.sub(r"[^a-z0-9]+", "_", key.lower()).strip("_")
             if forbidden.search(normalized):
                 raise FigureSpecError(f"MODULE1_ESCAPE_RATE_HISTORY_FORBIDDEN: {path}")
+
+    if spec["recipe_id"] == "m02_redox_ratio_diagnostics":
+        if (
+            bindings.get("mantleOxygenFugacity", None) is not None
+            or bindings.get("redoxBufferOffset", None) is not None
+            or bindings.get("aqueousPh", None) is not None
+        ):
+            raise FigureSpecError("Module 2 atmospheric gas-ratio figure may not contain mantle fO2, redox-buffer, or aqueous-pH results")
+        forbidden = re.compile(
+            r"(?:mantle_(?:oxygen_fugacity|fo2)|(?:delta_)?(?:fmq|iw)(?:_offset)?|oxygen_fugacity)",
+            re.IGNORECASE,
+        )
+        for path, key, _ in _walk(bindings):
+            normalized = re.sub(r"[^a-z0-9]+", "_", key.lower()).strip("_")
+            if forbidden.search(normalized):
+                raise FigureSpecError(f"MODULE2_MANTLE_REDOX_FORBIDDEN: {path}")
 
     _finite_numbers(bindings)
     return spec
