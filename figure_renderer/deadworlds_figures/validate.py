@@ -1,0 +1,90 @@
+from __future__ import annotations
+
+import math
+import re
+from collections.abc import Mapping, Sequence
+from typing import Any
+
+from jsonschema import Draft202012Validator
+
+from .errors import FigureSpecError
+from .schema import FIGURE_SPEC_SCHEMA
+
+_VALIDATOR = Draft202012Validator(FIGURE_SPEC_SCHEMA)
+_FORBIDDEN_KEY = re.compile(
+    r"^(?:hiddenCulture|hidden_culture|hidden_truth|generator_truth|"
+    r"modelTruthProbabilit(?:y|ies)|truth_probability|winner_model|preferred_model|"
+    r"transmission_edges?|social_network_edges?|direct_contact_edges?|population_prevalence|"
+    r"prestige_score|ethnic_identity|semantic_meaning)$",
+    re.IGNORECASE,
+)
+
+
+def _walk(value: Any, path: str = ""):
+    if isinstance(value, Mapping):
+        for key, item in value.items():
+            child = f"{path}.{key}" if path else str(key)
+            yield child, str(key), item
+            yield from _walk(item, child)
+    elif isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+        for index, item in enumerate(value):
+            child = f"{path}[{index}]"
+            yield from _walk(item, child)
+
+
+def _finite_numbers(value: Any, path: str = "data.bindings") -> None:
+    if isinstance(value, bool) or value is None or isinstance(value, str):
+        return
+    if isinstance(value, (int, float)):
+        if not math.isfinite(float(value)):
+            raise FigureSpecError(f"non-finite numeric value at {path}")
+        return
+    if isinstance(value, Mapping):
+        for key, item in value.items():
+            _finite_numbers(item, f"{path}.{key}")
+        return
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+        for i, item in enumerate(value):
+            _finite_numbers(item, f"{path}[{i}]")
+
+
+def validate_figure_spec(spec: dict[str, Any], *, strict_provenance: bool = True) -> dict[str, Any]:
+    errors = sorted(_VALIDATOR.iter_errors(spec), key=lambda e: list(e.path))
+    if errors:
+        first = errors[0]
+        location = ".".join(map(str, first.path)) or "<root>"
+        raise FigureSpecError(f"FigureSpec schema violation at {location}: {first.message}")
+
+    if spec["dimensionality"] != "2d":
+        raise FigureSpecError("renderer v0.2.0 accepts only 2d FigureSpecs")
+    renderer = spec["renderer"]
+    if renderer["preferred"] != "matplotlib" and "matplotlib" not in renderer.get("fallbacks", []):
+        raise FigureSpecError("FigureSpec has no licensed matplotlib renderer path")
+    if not spec["outputs"]:
+        raise FigureSpecError("FigureSpec outputs must not be empty")
+    if "interactive_html" in spec["outputs"] and renderer["preferred"] != "plotly":
+        # We can render the static fallback, but never silently pretend to have emitted interactivity.
+        pass
+
+    provenance = spec["provenance"]
+    if strict_provenance:
+        module_run_id = str(provenance.get("module_run_id", "")).strip()
+        source_refs = provenance.get("source_refs")
+        if not module_run_id or module_run_id == "UNPERSISTED":
+            raise FigureSpecError("rendering requires a persisted module_run_id")
+        if not isinstance(source_refs, list) or not source_refs:
+            raise FigureSpecError("rendering requires at least one source_ref")
+
+    bindings = spec["data"]["bindings"]
+    for path, key, _ in _walk(bindings):
+        if _FORBIDDEN_KEY.match(key):
+            raise FigureSpecError(f"unlicensed/hidden inference field in figure bindings: {path}")
+    if re.search(r"HIDDEN_AND_FORBIDDEN", str(bindings), re.IGNORECASE):
+        raise FigureSpecError("hidden truth marker leaked into figure bindings")
+
+    if spec["recipe_id"] == "m12a_transmission_model_identifiability":
+        if bindings.get("modelComparisonResult", None) is not None:
+            raise FigureSpecError("Module 12 identifiability figure may not contain model-comparison results")
+
+    _finite_numbers(bindings)
+    return spec

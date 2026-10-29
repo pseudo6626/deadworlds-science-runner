@@ -1,0 +1,119 @@
+{
+  "spec_version": "deadworlds-figure-spec-v1",
+  "figure_id": "technological_energetics:m10_measurement_formula_provenance:fixture",
+  "module_id": "10_technological_energetics",
+  "module_version": "deadworlds-technological-energetics-v1.0.0",
+  "title": "Energetics measurement-to-formula provenance",
+  "purpose": "Trace reported quantities to measurements and deterministic formulas.",
+  "dimensionality": "2d",
+  "renderer": {
+    "preferred": "plotly",
+    "fallbacks": [
+      "matplotlib"
+    ],
+    "style_profile": "technological_energetics_publication_v1"
+  },
+  "data": {
+    "source_kind": "derived_evidence",
+    "bindings": {
+      "relations": [
+        {
+          "findId": "F-01",
+          "key": "minimum_gravitational_work",
+          "quantity": "energy",
+          "value": 9806.65,
+          "unit": "J",
+          "provenance": {
+            "formula": "E_min = m g |\u0394h|",
+            "inputs": [
+              {
+                "kind": "mass_kg",
+                "value": 250.0,
+                "unit": "kg",
+                "measurement_id": "m1",
+                "significant_figures": 3
+              },
+              {
+                "kind": "height_change_m",
+                "value": 4.0,
+                "unit": "m",
+                "measurement_id": "m2",
+                "significant_figures": 2
+              }
+            ],
+            "assumptions": [
+              "classical gravitational field"
+            ],
+            "calculationBasis": "classical_mechanics_identity",
+            "sourceRule": "STRUCTURED_MEASURED_INPUTS_ONLY"
+          }
+        },
+        {
+          "findId": "F-02",
+          "key": "measured_state_kinetic_energy",
+          "quantity": "energy",
+          "value": 720.0,
+          "unit": "J",
+          "provenance": {
+            "formula": "E_k = 1/2 m v^2",
+            "inputs": [
+              {
+                "kind": "mass_kg",
+                "value": 10.0,
+                "unit": "kg",
+                "measurement_id": "m3",
+                "significant_figures": 2
+              },
+              {
+                "kind": "speed_m_s",
+                "value": 12.0,
+                "unit": "m/s",
+                "measurement_id": "m4",
+                "significant_figures": 2
+              }
+            ],
+            "assumptions": [
+              "classical kinetic-energy identity"
+            ],
+            "calculationBasis": "classical_mechanics_identity",
+            "sourceRule": "STRUCTURED_MEASURED_INPUTS_ONLY"
+          }
+        }
+      ]
+    },
+    "units_policy": "explicit_si_or_domain_standard"
+  },
+  "axes": {
+    "units_policy": "explicit_si_or_domain_standard"
+  },
+  "uncertainty": {
+    "representation": "categorical_status",
+    "meaning": "Contract fixture status semantics."
+  },
+  "epistemics": {
+    "method_ids": [
+      "mechanics-energy-accounting"
+    ],
+    "assumptions": [
+      "Fixture data only."
+    ],
+    "blocked_if": [],
+    "precision_policy": "never_exceed_source_precision"
+  },
+  "outputs": [
+    "svg",
+    "png",
+    "json",
+    "interactive_html"
+  ],
+  "provenance": {
+    "renderer_version_required": true,
+    "module_run_id_required": true,
+    "source_refs_required": true,
+    "module_run_id": "10000000-0000-4000-8000-000000000010",
+    "source_refs": [
+      "fixture:tech-energy:1"
+    ]
+  },
+  "recipe_id": "m10_measurement_formula_provenance"
+}

@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "deadworlds-figure-renderer"
+version = "0.2.0"
+description = "Deterministic scientific renderer for Deadworlds FigureSpec v1"
+requires-python = ">=3.12"
+dependencies = [
+  "matplotlib==3.10.8",
+  "numpy==2.3.5",
+  "jsonschema==4.26.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest==9.0.2"]
+
+[project.scripts]
+deadworlds-render-figure = "deadworlds_figures.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["deadworlds_figures*"]

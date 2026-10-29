@@ -1,0 +1,169 @@
+{
+  "spec_version": "deadworlds-figure-spec-v1",
+  "figure_id": "cultural_transmission:m12a_trait_frequency_by_phase:fixture",
+  "module_id": "12_cultural_transmission",
+  "module_version": "deadworlds-cultural-transmission-v1.0.0",
+  "recipe_id": "m12a_trait_frequency_by_phase",
+  "title": "Recovered trait frequencies by phase",
+  "purpose": "Display deterministically counted observable trait states within comparable recovered samples without relabeling sample frequency as population prevalence.",
+  "dimensionality": "2d",
+  "renderer": {
+    "preferred": "matplotlib",
+    "fallbacks": [
+      "plotly"
+    ],
+    "style_profile": "cultural_transmission_publication_v1"
+  },
+  "data": {
+    "source_kind": "illustrative_contract_test",
+    "bindings": {
+      "traitFrequencyLedger": [
+        {
+          "trait_family": "synthetic_motif_class",
+          "observation_unit": "recovered_record",
+          "cultural_origin_status": "ESTABLISHED_BY_INDEPENDENT_EVIDENCE",
+          "counting_unit_status": "ADEQUATE",
+          "phase_id": "P0",
+          "sample_size": 100,
+          "counts": {
+            "A": 50,
+            "B": 30,
+            "C": 20
+          },
+          "frequencies": {
+            "A": 0.5,
+            "B": 0.3,
+            "C": 0.2
+          },
+          "semantics": "coded recovered-record frequency; population prevalence and independent counting-unit status remain separate"
+        },
+        {
+          "trait_family": "synthetic_motif_class",
+          "observation_unit": "recovered_record",
+          "cultural_origin_status": "ESTABLISHED_BY_INDEPENDENT_EVIDENCE",
+          "counting_unit_status": "ADEQUATE",
+          "phase_id": "P1",
+          "sample_size": 100,
+          "counts": {
+            "A": 55,
+            "B": 29,
+            "C": 16
+          },
+          "frequencies": {
+            "A": 0.55,
+            "B": 0.29,
+            "C": 0.16
+          },
+          "semantics": "coded recovered-record frequency; population prevalence and independent counting-unit status remain separate"
+        },
+        {
+          "trait_family": "synthetic_motif_class",
+          "observation_unit": "recovered_record",
+          "cultural_origin_status": "ESTABLISHED_BY_INDEPENDENT_EVIDENCE",
+          "counting_unit_status": "ADEQUATE",
+          "phase_id": "P2",
+          "sample_size": 100,
+          "counts": {
+            "A": 60,
+            "B": 27,
+            "C": 13
+          },
+          "frequencies": {
+            "A": 0.6,
+            "B": 0.27,
+            "C": 0.13
+          },
+          "semantics": "coded recovered-record frequency; population prevalence and independent counting-unit status remain separate"
+        },
+        {
+          "trait_family": "synthetic_motif_class",
+          "observation_unit": "recovered_record",
+          "cultural_origin_status": "ESTABLISHED_BY_INDEPENDENT_EVIDENCE",
+          "counting_unit_status": "ADEQUATE",
+          "phase_id": "P3",
+          "sample_size": 100,
+          "counts": {
+            "A": 59,
+            "B": 28,
+            "C": 13
+          },
+          "frequencies": {
+            "A": 0.59,
+            "B": 0.28,
+            "C": 0.13
+          },
+          "semantics": "coded recovered-record frequency; population prevalence and independent counting-unit status remain separate"
+        },
+        {
+          "trait_family": "synthetic_motif_class",
+          "observation_unit": "recovered_record",
+          "cultural_origin_status": "ESTABLISHED_BY_INDEPENDENT_EVIDENCE",
+          "counting_unit_status": "ADEQUATE",
+          "phase_id": "P4",
+          "sample_size": 100,
+          "counts": {
+            "A": 72,
+            "B": 17,
+            "C": 11
+          },
+          "frequencies": {
+            "A": 0.72,
+            "B": 0.17,
+            "C": 0.11
+          },
+          "semantics": "coded recovered-record frequency; population prevalence and independent counting-unit status remain separate"
+        },
+        {
+          "trait_family": "synthetic_motif_class",
+          "observation_unit": "recovered_record",
+          "cultural_origin_status": "ESTABLISHED_BY_INDEPENDENT_EVIDENCE",
+          "counting_unit_status": "ADEQUATE",
+          "phase_id": "P5",
+          "sample_size": 100,
+          "counts": {
+            "A": 81,
+            "B": 14,
+            "C": 5
+          },
+          "frequencies": {
+            "A": 0.81,
+            "B": 0.14,
+            "C": 0.05
+          },
+          "semantics": "coded recovered-record frequency; population prevalence and independent counting-unit status remain separate"
+        }
+      ]
+    },
+    "units_policy": "explicit_si_or_domain_standard"
+  },
+  "axes": {
+    "units_policy": "explicit_si_or_domain_standard"
+  },
+  "uncertainty": {
+    "representation": "categorical_status",
+    "meaning": "Recovered-sample frequency with explicit sample size; not prevalence in the source population."
+  },
+  "epistemics": {
+    "method_ids": [],
+    "assumptions": [
+      "Synthetic renderer contract fixture; no empirical Deadworld claim."
+    ],
+    "blocked_if": [],
+    "precision_policy": "never_exceed_source_precision"
+  },
+  "outputs": [
+    "svg",
+    "png",
+    "csv",
+    "json"
+  ],
+  "provenance": {
+    "renderer_version_required": true,
+    "module_run_id_required": true,
+    "source_refs_required": true,
+    "module_run_id": "00000000-0000-4000-8000-000000000012",
+    "source_refs": [
+      "fixture:ct-synthetic-pymc-v086"
+    ]
+  }
+}

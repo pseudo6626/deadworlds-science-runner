@@ -1,0 +1,81 @@
+{
+  "spec_version": "deadworlds-figure-spec-v1",
+  "module_id": "15_model_comparison_ppc",
+  "module_version": "deadworlds-model-comparison-ppc-v1.0.0",
+  "dimensionality": "2d",
+  "renderer": {
+    "preferred": "matplotlib",
+    "fallbacks": [
+      "plotly"
+    ],
+    "style_profile": "model_comparison_ppc_publication_v1"
+  },
+  "axes": {
+    "units_policy": "explicit_si_or_domain_standard"
+  },
+  "epistemics": {
+    "method_ids": [],
+    "assumptions": [
+      "Synthetic implementation fixture only; fit is not truth."
+    ],
+    "blocked_if": [],
+    "precision_policy": "never_exceed_source_precision"
+  },
+  "outputs": [
+    "svg",
+    "png",
+    "csv",
+    "json"
+  ],
+  "provenance": {
+    "renderer_version_required": true,
+    "module_run_id_required": true,
+    "source_refs_required": true,
+    "module_run_id": "00000000-0000-4000-8000-000000000015",
+    "source_refs": [
+      "fixture:m15-synthetic-evaluation-plan"
+    ]
+  },
+  "figure_id": "model_comparison_ppc:m15a_validation_diagnostics:fixture",
+  "recipe_id": "m15a_validation_diagnostics",
+  "title": "Evaluation validation prerequisites",
+  "purpose": "Display the separate roles of SBC, prior predictive checks, PSIS diagnostics, held-out partitions and ABC summary validation.",
+  "data": {
+    "source_kind": "illustrative_contract_test",
+    "bindings": {
+      "evaluationGroups": [
+        {
+          "comparison_group_id": "ct:synthetic_motif_class",
+          "source_module": "cultural_transmission",
+          "status": "MODEL_EVALUATION_PLAN_ELIGIBLE",
+          "evaluationEligibility": {
+            "priorPredictive": "ELIGIBLE",
+            "simulationBasedCalibration": "ELIGIBLE_FOR_INFERENCE_IMPLEMENTATION_CHECK",
+            "posteriorPredictiveChecks": "ELIGIBLE",
+            "psisLoo": "BLOCKED",
+            "exactOrKfoldCv": "ELIGIBLE",
+            "abcModelChoice": "BLOCKED",
+            "predictiveStacking": "ELIGIBLE_AFTER_VALID_CV_RESULTS"
+          },
+          "evaluationPlan": {
+            "validation_unit_status": "DEFINED_AND_JUSTIFIED",
+            "dependence_structure_status": "MODELED_OR_RESPECTED",
+            "predeclared_discrepancies": [
+              "mean_interphase_tv_distance",
+              "mean_destination_shannon_entropy"
+            ],
+            "heldout_or_cv_partition_status": "AVAILABLE",
+            "sbc_status": "PASSED_IMPLEMENTATION_VALIDATION",
+            "prior_predictive_status": "AVAILABLE",
+            "abc_summary_discrimination_status": "UNRESOLVED"
+          }
+        }
+      ]
+    },
+    "units_policy": "explicit_si_or_domain_standard"
+  },
+  "uncertainty": {
+    "representation": "categorical_status",
+    "meaning": "Workflow validation status; not empirical model adequacy or causal truth."
+  }
+}

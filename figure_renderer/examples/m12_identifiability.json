@@ -1,0 +1,78 @@
+{
+  "spec_version": "deadworlds-figure-spec-v1",
+  "figure_id": "cultural_transmission:m12a_transmission_model_identifiability:fixture",
+  "module_id": "12_cultural_transmission",
+  "module_version": "deadworlds-cultural-transmission-v1.0.0",
+  "recipe_id": "m12a_transmission_model_identifiability",
+  "title": "Transmission-model identifiability matrix",
+  "purpose": "Show whether neutral and alternative generative transmission models are eligible for later explicit model comparison, while keeping copying/contact/ancestry claims separately blocked.",
+  "dimensionality": "2d",
+  "renderer": {
+    "preferred": "matplotlib",
+    "fallbacks": [
+      "plotly"
+    ],
+    "style_profile": "cultural_transmission_publication_v1"
+  },
+  "data": {
+    "source_kind": "illustrative_contract_test",
+    "bindings": {
+      "modelEligibility": {
+        "descriptiveTemporalComparison": "ELIGIBLE",
+        "timeAveraging": "ADEQUATE_FOR_MODEL_TEST",
+        "functionalConstraintAssessment": "UNRESOLVED",
+        "culturalOriginAssessment": "CULTURAL_ORIGIN_ESTABLISHED_BY_INDEPENDENT_EVIDENCE",
+        "countingUnitAssessment": "ADEQUATE_FOR_FREQUENCY_MODEL",
+        "neutralModelSimulation": "ELIGIBLE",
+        "frequencyDependentAlternativeSimulation": "ELIGIBLE"
+      },
+      "candidateModelSpecifications": [
+        {
+          "model_id": "neutral_unbiased_copying",
+          "status": "CANDIDATE"
+        },
+        {
+          "model_id": "frequency_dependent_alternative",
+          "status": "CANDIDATE"
+        }
+      ],
+      "modelComparisonResult": null,
+      "blockedInferences": [
+        "copying",
+        "contact",
+        "ancestry"
+      ]
+    },
+    "units_policy": "explicit_si_or_domain_standard"
+  },
+  "axes": {
+    "units_policy": "explicit_si_or_domain_standard"
+  },
+  "uncertainty": {
+    "representation": "categorical_status",
+    "meaning": "Model-test eligibility, not a posterior probability of a cultural-learning strategy."
+  },
+  "epistemics": {
+    "method_ids": [],
+    "assumptions": [
+      "Synthetic renderer contract fixture; no empirical Deadworld claim."
+    ],
+    "blocked_if": [],
+    "precision_policy": "never_exceed_source_precision"
+  },
+  "outputs": [
+    "svg",
+    "png",
+    "csv",
+    "json"
+  ],
+  "provenance": {
+    "renderer_version_required": true,
+    "module_run_id_required": true,
+    "source_refs_required": true,
+    "module_run_id": "00000000-0000-4000-8000-000000000012",
+    "source_refs": [
+      "fixture:ct-synthetic-pymc-v086"
+    ]
+  }
+}
