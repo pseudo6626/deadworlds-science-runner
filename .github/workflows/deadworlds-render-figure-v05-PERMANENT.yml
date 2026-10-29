@@ -1,0 +1,239 @@
+name: Deadworlds deterministic figure rendering
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'figure_renderer/**'
+      - '.github/workflows/deadworlds-render-figure.yml'
+  pull_request:
+    paths:
+      - 'figure_renderer/**'
+      - '.github/workflows/deadworlds-render-figure.yml'
+  repository_dispatch:
+    types: [deadworlds-render-figure-v1]
+  workflow_dispatch:
+    inputs:
+      render_job_id:
+        description: "Existing sandbox render job UUID"
+        required: true
+        type: string
+
+jobs:
+  renderer-regression:
+    name: Validate deterministic renderer
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Check out audited runner
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: figure_renderer/RENDERER_CONSTRAINTS.txt
+
+      - name: Install pinned renderer stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install -c figure_renderer/RENDERER_CONSTRAINTS.txt -e './figure_renderer[dev]'
+
+      - name: Validate pinned renderer runtime
+        shell: bash
+        run: |
+          python - <<'PY'
+          from importlib.metadata import version
+          expected = {
+              "deadworlds-figure-renderer": "0.5.0",
+              "matplotlib": "3.10.8",
+              "numpy": "2.3.5",
+              "jsonschema": "4.26.0",
+              "pytest": "9.0.2",
+          }
+          for package, wanted in expected.items():
+              actual = version(package)
+              if actual != wanted:
+                  raise SystemExit(f"{package}: expected {wanted}, got {actual}")
+          print("Validated pinned Deadworlds figure-renderer runtime.")
+          PY
+
+      - name: Run renderer regression suite
+        run: pytest -q figure_renderer/tests
+
+  render:
+    name: Render immutable scientific FigureSpec
+    if: >-
+      (github.event_name == 'repository_dispatch' &&
+       github.event.client_payload.render_job_id != '' &&
+       github.event.client_payload.render_job_id != null &&
+       github.event.client_payload.forge_environment != '' &&
+       github.event.client_payload.forge_environment != null) ||
+      (github.event_name == 'workflow_dispatch' &&
+       inputs.render_job_id != '')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      id-token: write
+    concurrency:
+      group: deadworlds-render-${{ github.event_name == 'workflow_dispatch' && inputs.render_job_id || github.event.client_payload.render_job_id }}
+      cancel-in-progress: false
+
+    steps:
+      - name: Check out audited runner
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: figure_renderer/RENDERER_CONSTRAINTS.txt
+
+      - name: Validate dispatch identity and route
+        id: route
+        env:
+          RENDER_JOB_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.render_job_id || github.event.client_payload.render_job_id }}
+          FORGE_ENVIRONMENT: ${{ github.event_name == 'workflow_dispatch' && 'sandbox' || github.event.client_payload.forge_environment }}
+        run: |
+          python - <<'PY'
+          import os, re
+
+          job = os.environ["RENDER_JOB_ID"]
+          environment = os.environ["FORGE_ENVIRONMENT"]
+          if not re.fullmatch(r"[0-9a-fA-F-]{36}", job):
+              raise SystemExit("Invalid Deadworlds render job id")
+
+          forge_bases = {
+              "sandbox": "https://deadworlds-forge-sandbox.pseudonymous-cypher.workers.dev",
+              "production": "https://deadworlds-forge.pseudonymous-cypher.workers.dev",
+          }
+          if environment not in forge_bases:
+              raise SystemExit("forge_environment must be exactly sandbox or production")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write(f"render_job_id={job}\n")
+              fh.write(f"forge_environment={environment}\n")
+              fh.write(f"forge_base={forge_bases[environment]}\n")
+
+          print(f"Render dispatch accepted for immutable job {job} in {environment}.")
+          PY
+
+      - name: Request GitHub OIDC token
+        shell: bash
+        run: |
+          set -euo pipefail
+          response="$(curl --fail-with-body --silent --show-error \
+            -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=deadworlds-render")"
+          token="$(python -c 'import json,sys; print(json.load(sys.stdin)["value"])' <<<"$response")"
+          echo "::add-mask::$token"
+          printf '%s' "$token" > "$RUNNER_TEMP/deadworlds-render-oidc.jwt"
+          chmod 600 "$RUNNER_TEMP/deadworlds-render-oidc.jwt"
+
+      - name: Claim immutable FigureSpec bundle
+        env:
+          RENDER_JOB_ID: ${{ steps.route.outputs.render_job_id }}
+          DEADWORLDS_FORGE_BASE: ${{ steps.route.outputs.forge_base }}
+        run: |
+          python figure_renderer/scripts/claim_render_bundle.py \
+            --job-id "$RENDER_JOB_ID" \
+            --oidc-file "$RUNNER_TEMP/deadworlds-render-oidc.jwt" \
+            --forge-base "$DEADWORLDS_FORGE_BASE" \
+            --out "$RUNNER_TEMP/RENDER_BUNDLE.json"
+
+      - name: Install pinned renderer
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install -c figure_renderer/RENDERER_CONSTRAINTS.txt -e ./figure_renderer
+
+      - name: Validate renderer runtime
+        shell: bash
+        run: |
+          python - <<'PY'
+          from importlib.metadata import version
+          expected = {
+              "deadworlds-figure-renderer": "0.5.0",
+              "matplotlib": "3.10.8",
+              "numpy": "2.3.5",
+              "jsonschema": "4.26.0",
+          }
+          for package, wanted in expected.items():
+              actual = version(package)
+              if actual != wanted:
+                  raise SystemExit(f"{package}: expected {wanted}, got {actual}")
+          print("Validated pinned Deadworlds figure-renderer runtime.")
+          PY
+
+      - name: Render, upload to Drive, and submit to Forge
+        env:
+          BUNDLE: ${{ runner.temp }}/RENDER_BUNDLE.json
+          OUTDIR: ${{ runner.temp }}/deadworlds-render-output
+        shell: bash
+        run: |
+          set -euo pipefail
+          python figure_renderer/scripts/run_render_bundle.py "$BUNDLE" --out "$OUTDIR"
+
+      - name: Clean sandbox artifact after manual E2E
+        if: success() && github.event_name == 'workflow_dispatch'
+        env:
+          BUNDLE: ${{ runner.temp }}/RENDER_BUNDLE.json
+          RENDER_JOB_ID: ${{ steps.route.outputs.render_job_id }}
+          DEADWORLDS_FORGE_BASE: ${{ steps.route.outputs.forge_base }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          token="$(python - "$BUNDLE" <<'PY'
+          import json, sys
+          with open(sys.argv[1], encoding="utf-8") as fh:
+              print(json.load(fh)["submission"]["token"])
+          PY
+          )"
+          response="$(curl --fail-with-body --silent --show-error \
+            -X POST \
+            -H "X-Deadworlds-Capability: $token" \
+            "$DEADWORLDS_FORGE_BASE/v1/render/jobs/$RENDER_JOB_ID/cleanup")"
+          python - "$response" <<'PY'
+          import json, sys
+          data = json.loads(sys.argv[1])
+          if not data.get("ok") or not data.get("deleted"):
+              raise SystemExit(f"Sandbox cleanup did not confirm deletion: {data}")
+          print(f"Cleaned sandbox render job {data['render_job_id']} and its Drive artifact.")
+          PY
+
+      - name: Write run summary
+        if: success()
+        env:
+          RENDER_JOB_ID: ${{ steps.route.outputs.render_job_id }}
+          FORGE_ENVIRONMENT: ${{ steps.route.outputs.forge_environment }}
+        run: |
+          {
+            echo "## Deadworlds deterministic scientific figure rendering"
+            echo
+            echo "- Job: \`$RENDER_JOB_ID\`"
+            echo "- Forge environment: \`$FORGE_ENVIRONMENT\`"
+            echo "- Renderer: \`deadworlds-figure-renderer-v0.5.0\`"
+            echo "- Status: **verified bundle submitted to Forge**"
+            echo
+            echo "Numeric plot data came only from the immutable FigureSpec bindings."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Destroy ephemeral capabilities
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          for file in "$RUNNER_TEMP/RENDER_BUNDLE.json" "$RUNNER_TEMP/deadworlds-render-oidc.jwt"; do
+            if [[ -f "$file" ]]; then
+              shred -u "$file" 2>/dev/null || rm -f "$file"
+            fi
+          done
