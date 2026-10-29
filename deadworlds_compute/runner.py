@@ -118,6 +118,8 @@ def execute(
             "size_bytes": storage_receipt["size"],
             "md5_checksum": storage_receipt["md5"],
             "sha256_checksum": storage_receipt["sha256"],
+            "mime_type": storage_receipt["mime_type"],
+            "file_name": storage_receipt["name"],
         }
 
     result_path = out_dir / f"{job.analysis_id}__{job.model_id}__result.json"
