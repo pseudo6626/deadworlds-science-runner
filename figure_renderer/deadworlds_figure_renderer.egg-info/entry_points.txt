@@ -1,2 +1,0 @@
-[console_scripts]
-deadworlds-render-figure = deadworlds_figures.cli:main
