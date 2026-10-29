@@ -1,0 +1,76 @@
+name: Deadworlds one-shot renderer v0.5 hosted M3 E2E
+'on':
+  workflow_dispatch: {}
+permissions:
+  contents: write
+  actions: write
+concurrency:
+  group: deadworlds-render-v05-hosted-m3-e2e
+  cancel-in-progress: false
+jobs:
+  upgrade-dispatch-verify:
+    name: Upgrade permanent renderer workflow and verify hosted M3
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+    - name: Check out main
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        ref: main
+        fetch-depth: 0
+    - name: Verify renderer v0.5 repository baseline
+      shell: bash
+      run: "set -euo pipefail\ngit diff --exit-code\ngit diff --cached --exit-code\npython - <<'PY'\nfrom pathlib import Path\nchecks = {\n    \"figure_renderer/pyproject.toml\": 'version = \"0.5.0\"',\n    \"figure_renderer/deadworlds_figures/schema.py\": 'RENDERER_VERSION = \"deadworlds-figure-renderer-v0.5.0\"',\n    \"figure_renderer/scripts/run_render_bundle.py\": 'EXPECTED_RENDERER = \"deadworlds-figure-renderer-v0.5.0\"',\n}\nfor path, marker in checks.items():\n    if marker not in Path(path).read_text(encoding=\"utf-8\"):\n        raise SystemExit(f\"Missing v0.5 baseline marker in {path}: {marker}\")\nwf = Path(\".github/workflows/deadworlds-render-figure.yml\").read_text(encoding=\"utf-8\")\nif wf.count('\"deadworlds-figure-renderer\": \"0.4.0\"') != 2:\n    raise SystemExit(\"Permanent render workflow is not in the expected pre-upgrade v0.4 runtime state\")\nif wf.count(\"deadworlds-figure-renderer-v0.4.0\") != 1:\n    raise SystemExit(\"Permanent render workflow summary is not in expected pre-upgrade state\")\nprint(\"Renderer v0.5 code baseline confirmed; permanent hosted workflow still needs its v0.5 upgrade.\")\nPY\n"
+    - name: Patch permanent hosted renderer workflow
+      shell: bash
+      env:
+        PATCH_B64: CmZyb20gcGF0aGxpYiBpbXBvcnQgUGF0aAoKcGF0aCA9IFBhdGgoIi5naXRodWIvd29ya2Zsb3dzL2RlYWR3b3JsZHMtcmVuZGVyLWZpZ3VyZS55bWwiKQp0ZXh0ID0gcGF0aC5yZWFkX3RleHQoZW5jb2Rpbmc9InV0Zi04IikKCmRlZiByZXBsYWNlX29uY2Uob2xkLCBuZXcsIGxhYmVsKToKICAgIGdsb2JhbCB0ZXh0CiAgICBjb3VudCA9IHRleHQuY291bnQob2xkKQogICAgaWYgY291bnQgIT0gMToKICAgICAgICByYWlzZSBTeXN0ZW1FeGl0KGYie2xhYmVsfTogZXhwZWN0ZWQgZXhhY3RseSBvbmUgbWF0Y2gsIGZvdW5kIHtjb3VudH0iKQogICAgdGV4dCA9IHRleHQucmVwbGFjZShvbGQsIG5ldywgMSkKCnJlcGxhY2Vfb25jZSgKICAgICcgIHJlcG9zaXRvcnlfZGlzcGF0Y2g6XG4gICAgdHlwZXM6IFtkZWFkd29ybGRzLXJlbmRlci1maWd1cmUtdjFdXG4nLAogICAgJyAgcmVwb3NpdG9yeV9kaXNwYXRjaDpcbiAgICB0eXBlczogW2RlYWR3b3JsZHMtcmVuZGVyLWZpZ3VyZS12MV1cbiAgd29ya2Zsb3dfZGlzcGF0Y2g6XG4gICAgaW5wdXRzOlxuICAgICAgcmVuZGVyX2pvYl9pZDpcbiAgICAgICAgZGVzY3JpcHRpb246ICJFeGlzdGluZyBzYW5kYm94IHJlbmRlciBqb2IgVVVJRCJcbiAgICAgICAgcmVxdWlyZWQ6IHRydWVcbiAgICAgICAgdHlwZTogc3RyaW5nXG4nLAogICAgIndvcmtmbG93X2Rpc3BhdGNoIHRyaWdnZXIiLAopCgpyZXBsYWNlX29uY2UoCiAgICAiICAgIGlmOiA+LVxuICAgICAgZ2l0aHViLmV2ZW50X25hbWUgPT0gJ3JlcG9zaXRvcnlfZGlzcGF0Y2gnICYmXG4gICAgICBnaXRodWIuZXZlbnQuY2xpZW50X3BheWxvYWQucmVuZGVyX2pvYl9pZCAhPSAnJyAmJlxuICAgICAgZ2l0aHViLmV2ZW50LmNsaWVudF9wYXlsb2FkLnJlbmRlcl9qb2JfaWQgIT0gbnVsbCAmJlxuICAgICAgZ2l0aHViLmV2ZW50LmNsaWVudF9wYXlsb2FkLmZvcmdlX2Vudmlyb25tZW50ICE9ICcnICYmXG4gICAgICBnaXRodWIuZXZlbnQuY2xpZW50X3BheWxvYWQuZm9yZ2VfZW52aXJvbm1lbnQgIT0gbnVsbFxuIiwKICAgICIgICAgaWY6ID4tXG4gICAgICAoZ2l0aHViLmV2ZW50X25hbWUgPT0gJ3JlcG9zaXRvcnlfZGlzcGF0Y2gnICYmXG4gICAgICAgZ2l0aHViLmV2ZW50LmNsaWVudF9wYXlsb2FkLnJlbmRlcl9qb2JfaWQgIT0gJycgJiZcbiAgICAgICBnaXRodWIuZXZlbnQuY2xpZW50X3BheWxvYWQucmVuZGVyX2pvYl9pZCAhPSBudWxsICYmXG4gICAgICAgZ2l0aHViLmV2ZW50LmNsaWVudF9wYXlsb2FkLmZvcmdlX2Vudmlyb25tZW50ICE9ICcnICYmXG4gICAgICAgZ2l0aHViLmV2ZW50LmNsaWVudF9wYXlsb2FkLmZvcmdlX2Vudmlyb25tZW50ICE9IG51bGwpIHx8XG4gICAgICAoZ2l0aHViLmV2ZW50X25hbWUgPT0gJ3dvcmtmbG93X2Rpc3BhdGNoJyAmJlxuICAgICAgIGlucHV0cy5yZW5kZXJfam9iX2lkICE9ICcnKVxuIiwKICAgICJyZW5kZXIgam9iIGNvbmRpdGlvbiIsCikKCnJlcGxhY2Vfb25jZSgKICAgICcgICAgICBncm91cDogZGVhZHdvcmxkcy1yZW5kZXItJHt7IGdpdGh1Yi5ldmVudC5jbGllbnRfcGF5bG9hZC5yZW5kZXJfam9iX2lkIH19XG4nLAogICAgIiAgICAgIGdyb3VwOiBkZWFkd29ybGRzLXJlbmRlci0ke3sgZ2l0aHViLmV2ZW50X25hbWUgPT0gJ3dvcmtmbG93X2Rpc3BhdGNoJyAmJiBpbnB1dHMucmVuZGVyX2pvYl9pZCB8fCBnaXRodWIuZXZlbnQuY2xpZW50X3BheWxvYWQucmVuZGVyX2pvYl9pZCB9fVxuIiwKICAgICJjb25jdXJyZW5jeSBqb2IgaWQiLAopCgpyZXBsYWNlX29uY2UoCiAgICAnICAgICAgICBlbnY6XG4gICAgICAgICAgUkVOREVSX0pPQl9JRDogJHt7IGdpdGh1Yi5ldmVudC5jbGllbnRfcGF5bG9hZC5yZW5kZXJfam9iX2lkIH19XG4gICAgICAgICAgRk9SR0VfRU5WSVJPTk1FTlQ6ICR7eyBnaXRodWIuZXZlbnQuY2xpZW50X3BheWxvYWQuZm9yZ2VfZW52aXJvbm1lbnQgfX1cbicsCiAgICAiICAgICAgICBlbnY6XG4gICAgICAgICAgUkVOREVSX0pPQl9JRDogJHt7IGdpdGh1Yi5ldmVudF9uYW1lID09ICd3b3JrZmxvd19kaXNwYXRjaCcgJiYgaW5wdXRzLnJlbmRlcl9qb2JfaWQgfHwgZ2l0aHViLmV2ZW50LmNsaWVudF9wYXlsb2FkLnJlbmRlcl9qb2JfaWQgfX1cbiAgICAgICAgICBGT1JHRV9FTlZJUk9OTUVOVDogJHt7IGdpdGh1Yi5ldmVudF9uYW1lID09ICd3b3JrZmxvd19kaXNwYXRjaCcgJiYgJ3NhbmRib3gnIHx8IGdpdGh1Yi5ldmVudC5jbGllbnRfcGF5bG9hZC5mb3JnZV9lbnZpcm9ubWVudCB9fVxuIiwKICAgICJyb3V0ZSBlbnZpcm9ubWVudCIsCikKCnJlcGxhY2Vfb25jZSgKICAgICcgICAgICAgICAgICAgIGZoLndyaXRlKGYiZm9yZ2VfZW52aXJvbm1lbnQ9e2Vudmlyb25tZW50fVxcbiIpXG4gICAgICAgICAgICAgIGZoLndyaXRlKGYiZm9yZ2VfYmFzZT17Zm9yZ2VfYmFzZXNbZW52aXJvbm1lbnRdfVxcbiIpXG4nLAogICAgJyAgICAgICAgICAgICAgZmgud3JpdGUoZiJyZW5kZXJfam9iX2lkPXtqb2J9XFxuIilcbiAgICAgICAgICAgICAgZmgud3JpdGUoZiJmb3JnZV9lbnZpcm9ubWVudD17ZW52aXJvbm1lbnR9XFxuIilcbiAgICAgICAgICAgICAgZmgud3JpdGUoZiJmb3JnZV9iYXNlPXtmb3JnZV9iYXNlc1tlbnZpcm9ubWVudF19XFxuIilcbicsCiAgICAicm91dGUgb3V0cHV0cyIsCikKCmNsYWltX29sZCA9ICcgICAgICAgICAgUkVOREVSX0pPQl9JRDogJHt7IGdpdGh1Yi5ldmVudC5jbGllbnRfcGF5bG9hZC5yZW5kZXJfam9iX2lkIH19XG4gICAgICAgICAgREVBRFdPUkxEU19GT1JHRV9CQVNFOiAke3sgc3RlcHMucm91dGUub3V0cHV0cy5mb3JnZV9iYXNlIH19XG4nCmNsYWltX25ldyA9ICcgICAgICAgICAgUkVOREVSX0pPQl9JRDogJHt7IHN0ZXBzLnJvdXRlLm91dHB1dHMucmVuZGVyX2pvYl9pZCB9fVxuICAgICAgICAgIERFQURXT1JMRFNfRk9SR0VfQkFTRTogJHt7IHN0ZXBzLnJvdXRlLm91dHB1dHMuZm9yZ2VfYmFzZSB9fVxuJwppZiB0ZXh0LmNvdW50KGNsYWltX29sZCkgIT0gMToKICAgIHJhaXNlIFN5c3RlbUV4aXQoZiJjbGFpbSBlbnY6IGV4cGVjdGVkIDEgbWF0Y2gsIGZvdW5kIHt0ZXh0LmNvdW50KGNsYWltX29sZCl9IikKdGV4dCA9IHRleHQucmVwbGFjZShjbGFpbV9vbGQsIGNsYWltX25ldywgMSkKCmlmIHRleHQuY291bnQoJyJkZWFkd29ybGRzLWZpZ3VyZS1yZW5kZXJlciI6ICIwLjQuMCInKSAhPSAyOgogICAgcmFpc2UgU3lzdGVtRXhpdCgiRXhwZWN0ZWQgZXhhY3RseSB0d28gc3RhbGUgcnVudGltZSB2ZXJzaW9uIGNoZWNrcyIpCnRleHQgPSB0ZXh0LnJlcGxhY2UoJyJkZWFkd29ybGRzLWZpZ3VyZS1yZW5kZXJlciI6ICIwLjQuMCInLCAnImRlYWR3b3JsZHMtZmlndXJlLXJlbmRlcmVyIjogIjAuNS4wIicpCgpyZXBsYWNlX29uY2UoCiAgICAnICAgICAgICAgIFJFTkRFUl9KT0JfSUQ6ICR7eyBnaXRodWIuZXZlbnQuY2xpZW50X3BheWxvYWQucmVuZGVyX2pvYl9pZCB9fVxuICAgICAgICAgIEZPUkdFX0VOVklST05NRU5UOiAke3sgc3RlcHMucm91dGUub3V0cHV0cy5mb3JnZV9lbnZpcm9ubWVudCB9fVxuJywKICAgICcgICAgICAgICAgUkVOREVSX0pPQl9JRDogJHt7IHN0ZXBzLnJvdXRlLm91dHB1dHMucmVuZGVyX2pvYl9pZCB9fVxuICAgICAgICAgIEZPUkdFX0VOVklST05NRU5UOiAke3sgc3RlcHMucm91dGUub3V0cHV0cy5mb3JnZV9lbnZpcm9ubWVudCB9fVxuJywKICAgICJzdW1tYXJ5IGVudmlyb25tZW50IiwKKQoKcmVwbGFjZV9vbmNlKAogICAgImRlYWR3b3JsZHMtZmlndXJlLXJlbmRlcmVyLXYwLjQuMCIsCiAgICAiZGVhZHdvcmxkcy1maWd1cmUtcmVuZGVyZXItdjAuNS4wIiwKICAgICJzdW1tYXJ5IHJlbmRlcmVyIHZlcnNpb24iLAopCgpjbGVhbnVwX3N0ZXAgPSAnJycgICAgICAtIG5hbWU6IENsZWFuIHNhbmRib3ggYXJ0aWZhY3QgYWZ0ZXIgbWFudWFsIEUyRQogICAgICAgIGlmOiBzdWNjZXNzKCkgJiYgZ2l0aHViLmV2ZW50X25hbWUgPT0gJ3dvcmtmbG93X2Rpc3BhdGNoJwogICAgICAgIGVudjoKICAgICAgICAgIEJVTkRMRTogJHt7IHJ1bm5lci50ZW1wIH19L1JFTkRFUl9CVU5ETEUuanNvbgogICAgICAgICAgUkVOREVSX0pPQl9JRDogJHt7IHN0ZXBzLnJvdXRlLm91dHB1dHMucmVuZGVyX2pvYl9pZCB9fQogICAgICAgICAgREVBRFdPUkxEU19GT1JHRV9CQVNFOiAke3sgc3RlcHMucm91dGUub3V0cHV0cy5mb3JnZV9iYXNlIH19CiAgICAgICAgc2hlbGw6IGJhc2gKICAgICAgICBydW46IHwKICAgICAgICAgIHNldCAtZXVvIHBpcGVmYWlsCiAgICAgICAgICB0b2tlbj0iJChweXRob24gLSAiJEJVTkRMRSIgPDwnUFknCiAgICAgICAgICBpbXBvcnQganNvbiwgc3lzCiAgICAgICAgICB3aXRoIG9wZW4oc3lzLmFyZ3ZbMV0sIGVuY29kaW5nPSJ1dGYtOCIpIGFzIGZoOgogICAgICAgICAgICAgIHByaW50KGpzb24ubG9hZChmaClbInN1Ym1pc3Npb24iXVsidG9rZW4iXSkKICAgICAgICAgIFBZCiAgICAgICAgICApIgogICAgICAgICAgcmVzcG9uc2U9IiQoY3VybCAtLWZhaWwtd2l0aC1ib2R5IC0tc2lsZW50IC0tc2hvdy1lcnJvciBcXAogICAgICAgICAgICAtWCBQT1NUIFxcCiAgICAgICAgICAgIC1IICJYLURlYWR3b3JsZHMtQ2FwYWJpbGl0eTogJHRva2VuIiBcXAogICAgICAgICAgICAiJERFQURXT1JMRFNfRk9SR0VfQkFTRS92MS9yZW5kZXIvam9icy8kUkVOREVSX0pPQl9JRC9jbGVhbnVwIikiCiAgICAgICAgICBweXRob24gLSAiJHJlc3BvbnNlIiA8PCdQWScKICAgICAgICAgIGltcG9ydCBqc29uLCBzeXMKICAgICAgICAgIGRhdGEgPSBqc29uLmxvYWRzKHN5cy5hcmd2WzFdKQogICAgICAgICAgaWYgbm90IGRhdGEuZ2V0KCJvayIpIG9yIG5vdCBkYXRhLmdldCgiZGVsZXRlZCIpOgogICAgICAgICAgICAgIHJhaXNlIFN5c3RlbUV4aXQoZiJTYW5kYm94IGNsZWFudXAgZGlkIG5vdCBjb25maXJtIGRlbGV0aW9uOiB7ZGF0YX0iKQogICAgICAgICAgcHJpbnQoZiJDbGVhbmVkIHNhbmRib3ggcmVuZGVyIGpvYiB7ZGF0YVsncmVuZGVyX2pvYl9pZCddfSBhbmQgaXRzIERyaXZlIGFydGlmYWN0LiIpCiAgICAgICAgICBQWQoKJycnCgptYXJrZXIgPSAiICAgICAgLSBuYW1lOiBXcml0ZSBydW4gc3VtbWFyeVxuIgppZiB0ZXh0LmNvdW50KG1hcmtlcikgIT0gMToKICAgIHJhaXNlIFN5c3RlbUV4aXQoIldyaXRlLXN1bW1hcnkgaW5zZXJ0aW9uIG1hcmtlciBtaXNzaW5nIG9yIGFtYmlndW91cyIpCnRleHQgPSB0ZXh0LnJlcGxhY2UobWFya2VyLCBjbGVhbnVwX3N0ZXAgKyBtYXJrZXIsIDEpCgpwYXRoLndyaXRlX3RleHQodGV4dCwgZW5jb2Rpbmc9InV0Zi04IikKcHJpbnQoIlBhdGNoZWQgcGVybWFuZW50IHJlbmRlciB3b3JrZmxvdyBmb3IgcmVuZGVyZXIgdjAuNSArIG1hbnVhbCBzYW5kYm94IEUyRS4iKQo=
+      run: 'set -euo pipefail
+
+        python - <<''PY''
+
+        import base64, os
+
+        from pathlib import Path
+
+        p = Path(os.environ["RUNNER_TEMP"]) / "patch_permanent_render_workflow.py"
+
+        p.write_bytes(base64.b64decode(os.environ["PATCH_B64"]))
+
+        PY
+
+        python "$RUNNER_TEMP/patch_permanent_render_workflow.py"
+
+        rm -f "$RUNNER_TEMP/patch_permanent_render_workflow.py"
+
+        '
+    - name: Verify permanent workflow patch
+      shell: bash
+      run: "set -euo pipefail\ngit diff --check\npython - <<'PY'\nfrom pathlib import Path\np = Path(\".github/workflows/deadworlds-render-figure.yml\")\ntext = p.read_text(encoding=\"utf-8\")\nrequired = [\n    \"workflow_dispatch:\",\n    '\"deadworlds-figure-renderer\": \"0.5.0\"',\n    \"github.event_name == 'workflow_dispatch'\",\n    \"Clean sandbox artifact after manual E2E\",\n    \"X-Deadworlds-Capability: $token\",\n    \"deadworlds-figure-renderer-v0.5.0\",\n]\nfor marker in required:\n    if marker not in text:\n        raise SystemExit(f\"Missing expected permanent-workflow marker: {marker}\")\nif \"deadworlds-figure-renderer-v0.4.0\" in text:\n    raise SystemExit(\"Stale v0.4 renderer identity remains in permanent render workflow\")\nif '\"deadworlds-figure-renderer\": \"0.4.0\"' in text:\n    raise SystemExit(\"Stale v0.4 runtime check remains in permanent render workflow\")\nprint(\"Permanent render workflow patch markers verified.\")\nPY\nchanged=\"$(git diff --name-only)\"\ntest \"$changed\" = \".github/workflows/deadworlds-render-figure.yml\"\n"
+    - name: Commit permanent v0.5 hosted workflow
+      id: commit
+      shell: bash
+      run: 'set -euo pipefail
+
+        git config user.name "deadworlds-maintenance[bot]"
+
+        git config user.email "91988331+pseudo6626@users.noreply.github.com"
+
+        git add .github/workflows/deadworlds-render-figure.yml
+
+        git commit -m "Enable renderer v0.5 hosted sandbox validation"
+
+        git push origin HEAD:main
+
+        echo "target_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+        '
+    - name: Dispatch and verify hosted Module 3 E2E
+      id: hosted
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      run: "set -euo pipefail\n\nTARGET_SHA=\"${{ steps.commit.outputs.target_sha }}\"\nJOB_ID=\"9392ff33-0dbc-4345-b226-f2d893c01836\"\nAPI=\"https://api.github.com/repos/${GITHUB_REPOSITORY}\"\nAUTH=\"Authorization: Bearer ${GITHUB_TOKEN}\"\n\nhttp=\"$(curl --silent --show-error -o \"$RUNNER_TEMP/dispatch-response.txt\" -w '%{http_code}' \\\n  -X POST \\\n  -H \"$AUTH\" \\\n  -H \"Accept: application/vnd.github+json\" \\\n  -H \"X-GitHub-Api-Version: 2022-11-28\" \\\n  \"$API/actions/workflows/deadworlds-render-figure.yml/dispatches\" \\\n  -d '{\"ref\":\"main\",\"inputs\":{\"render_job_id\":\"9392ff33-0dbc-4345-b226-f2d893c01836\"}}')\"\n\nif [[ \"$http\" != \"204\" ]]; then\n  echo \"workflow_dispatch failed with HTTP $http\"\n  cat \"$RUNNER_TEMP/dispatch-response.txt\"\n  exit 1\nfi\n\necho \"Dispatched hosted Module 3 render job $JOB_ID at commit $TARGET_SHA\"\n\nrun_id=\"\"\nfor _ in $(seq 1 40); do\n  response=\"$(curl --fail-with-body --silent --show-error \\\n    -H \"$AUTH\" \\\n    -H \"Accept: application/vnd.github+json\" \\\n    -H \"X-GitHub-Api-Version: 2022-11-28\" \\\n    \"$API/actions/workflows/deadworlds-render-figure.yml/runs?event=workflow_dispatch&branch=main&per_page=20\")\"\n  run_id=\"$(python - \"$TARGET_SHA\" \"$response\" <<'PY'\nimport json, sys\nsha, raw = sys.argv[1], sys.argv[2]\ndata = json.loads(raw)\nfor run in data.get(\"workflow_runs\", []):\n    if run.get(\"head_sha\") == sha and run.get(\"event\") == \"workflow_dispatch\":\n        print(run[\"id\"])\n        break\nPY\n)\"\n  [[ -n \"$run_id\" ]] && break\n  sleep 3\ndone\n\nif [[ -z \"$run_id\" ]]; then\n  echo \"Could not locate the hosted workflow_dispatch run.\"\n  exit 1\nfi\n\necho \"Hosted run id: $run_id\"\n\nfor _ in $(seq 1 120); do\n  response=\"$(curl --fail-with-body --silent --show-error \\\n    -H \"$AUTH\" \\\n    -H \"Accept: application/vnd.github+json\" \\\n    -H \"X-GitHub-Api-Version: 2022-11-28\" \\\n    \"$API/actions/runs/$run_id\")\"\n  read -r status conclusion < <(python - \"$response\" <<'PY'\nimport json, sys\nr = json.loads(sys.argv[1])\nprint(r.get(\"status\") or \"\", r.get(\"conclusion\") or \"\")\nPY\n)\n  if [[ \"$status\" == \"completed\" ]]; then\n    if [[ \"$conclusion\" != \"success\" ]]; then\n      echo \"Hosted Module 3 E2E failed: run=$run_id conclusion=$conclusion\"\n      exit 1\n    fi\n    echo \"Hosted Module 3 E2E succeeded: run=$run_id\"\n    echo \"hosted_run_id=$run_id\" >> \"$GITHUB_OUTPUT\"\n    exit 0\n  fi\n  sleep 5\ndone\n\necho \"Timed out waiting for hosted Module 3 E2E run $run_id\"\nexit 1\n"
+    - name: Remove one-shot helper after successful E2E
+      shell: bash
+      run: "set -euo pipefail\nfor helper in \\\n  \".github/workflows/deadworlds-render-v05-hosted-e2e-final.yml\" \\\n  \".github/workflows/deadworlds-render-v05-hosted-e2e-corrected.yml\" \\\n  \".github/workflows/deadworlds-render-v05-hosted-e2e-refresh.yml\" \\\n  \".github/workflows/deadworlds-renderer-v05-version-fix.yml\"\ndo\n  if [[ -f \"$helper\" ]]; then\n    rm \"$helper\"\n    git add \"$helper\"\n  fi\ndone\ngit commit -m \"Remove renderer v0.5 hosted E2E helpers\"\ngit push origin HEAD:main\n"
