@@ -1,6 +1,6 @@
 """Deadworlds deterministic scientific figure renderer."""
 
-__version__ = "0.2.1"
+__version__ = "0.3.0"
 
 from .render import render_figure_spec
 from .validate import validate_figure_spec
