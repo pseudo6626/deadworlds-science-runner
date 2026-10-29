@@ -57,6 +57,82 @@ def _value_bar(title: str, suffix: str, labels: list[str], values: list[float], 
     )
 
 
+# ---------------- Module 1: Atmospheric Evolution ----------------
+
+def equilibrium_temperature_albedo_sensitivity(spec: dict[str, Any]) -> list[PlotPlan]:
+    rows = spec["data"]["bindings"].get("equilibriumTemperatureSensitivity") or []
+    if len(rows) < 2:
+        raise FigureSpecError("equilibriumTemperatureSensitivity requires at least two albedo rows")
+    points = []
+    for row in rows:
+        albedo = row.get("bondAlbedo")
+        temp = row.get("equilibriumTemperatureK")
+        if isinstance(albedo, bool) or not isinstance(albedo, (int, float)) or not 0 <= float(albedo) <= 1:
+            raise FigureSpecError("equilibrium-temperature sensitivity has invalid Bond albedo")
+        if isinstance(temp, bool) or not isinstance(temp, (int, float)) or float(temp) <= 0:
+            raise FigureSpecError("equilibrium-temperature sensitivity has invalid temperature")
+        points.append((float(albedo), float(temp), dict(row)))
+    points.sort(key=lambda x: x[0])
+    return [PlotPlan(
+        suffix="equilibrium_temperature_albedo_sensitivity",
+        kind="line",
+        title=spec["title"],
+        x_label="Assumed Bond albedo",
+        y_label="Equilibrium temperature (K)",
+        series=[LineSeries("Irradiation equilibrium", [x[0] for x in points], [x[1] for x in points])],
+        csv_rows=[x[2] for x in points],
+        note="Deterministic irradiation sensitivity only. Bond albedo is an explicit assumption; equilibrium temperature is not measured surface temperature and excludes greenhouse and internal heating.",
+    )]
+
+
+def escape_retention_sensitivity(spec: dict[str, Any]) -> list[PlotPlan]:
+    rows = spec["data"]["bindings"].get("referenceJeansSensitivity") or []
+    if not rows:
+        raise FigureSpecError("referenceJeansSensitivity is empty")
+    grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        species = _text(row.get("species"))
+        texo = row.get("assumedExobaseTemperatureK")
+        lam = row.get("referenceJeansLambda")
+        if species == "UNRESOLVED":
+            raise FigureSpecError("reference Jeans sensitivity row lacks species")
+        if isinstance(texo, bool) or not isinstance(texo, (int, float)) or float(texo) <= 0:
+            raise FigureSpecError("reference Jeans sensitivity has invalid assumed exobase temperature")
+        if isinstance(lam, bool) or not isinstance(lam, (int, float)) or float(lam) < 0:
+            raise FigureSpecError("reference Jeans sensitivity has invalid lambda")
+        grouped[species].append(dict(row))
+    series = []
+    csv_rows = []
+    for species in sorted(grouped):
+        species_rows = sorted(grouped[species], key=lambda x: float(x["assumedExobaseTemperatureK"]))
+        if len(species_rows) < 2:
+            raise FigureSpecError("reference Jeans sensitivity requires at least two temperatures per species")
+        series.append(LineSeries(species,[float(x["assumedExobaseTemperatureK"]) for x in species_rows],[float(x["referenceJeansLambda"]) for x in species_rows]))
+        csv_rows.extend(species_rows)
+    return [PlotPlan(
+        suffix="escape_retention_sensitivity",kind="line",title=spec["title"],
+        x_label="Assumed exobase temperature (K)",y_label="Reference Jeans λ (dimensionless)",series=series,csv_rows=csv_rows,
+        note="Reference sensitivity only: r_exo = R_p and assumed exobase temperatures. These curves are not an inferred Jeans parameter, escape regime, escape rate, or atmospheric-loss history.",
+    )]
+
+
+def multistar_forcing_contributors(spec: dict[str, Any]) -> list[PlotPlan]:
+    b = spec["data"]["bindings"]
+    rows = b.get("radiativeContributors") or []
+    resolved = []
+    for row in rows:
+        value = row.get("orbitMeanBolometricFluxSearth")
+        if row.get("resolved") is True and isinstance(value, (int, float)) and not isinstance(value, bool):
+            resolved.append(dict(row))
+    if len(resolved) < 2:
+        raise FigureSpecError("multi-star forcing requires at least two resolved radiative contributors")
+    labels, values = [], []
+    for row in resolved:
+        labels.append(f"body {_text(row.get('starBodyId'))} · {_text(row.get('starClass'))} · {_text(row.get('relation'))}")
+        values.append(float(row["orbitMeanBolometricFluxSearth"]))
+    completeness = _text(b.get("forcingCompleteness"))
+    return [_value_bar(spec["title"],"multistar_forcing_contributors",labels,values,x_label="Orbit-mean bolometric flux contribution (S_earth)",csv_rows=resolved,note=f"Resolved stellar contributions are shown separately before summation. Forcing completeness: {completeness}. Unresolved contributors are omitted, never plotted as zero.")]
+
 # ---------------- Module 10: Technological Energetics ----------------
 
 def energy_lower_bound_ledger(spec: dict[str, Any]) -> list[PlotPlan]:
@@ -391,6 +467,9 @@ def adequacy_preference_contract(spec: dict[str, Any]) -> list[PlotPlan]:
 
 
 _ADAPTERS: dict[str, Callable[[dict[str, Any]], list[PlotPlan]]] = {
+    "m01_equilibrium_temperature_albedo_sensitivity": equilibrium_temperature_albedo_sensitivity,
+    "m01_escape_retention_sensitivity": escape_retention_sensitivity,
+    "m01_multistar_forcing_contributors": multistar_forcing_contributors,
     "m10_energy_lower_bound_ledger": energy_lower_bound_ledger,
     "m10_energy_power_identifiability": energy_power_identifiability,
     "m10_process_trace_prerequisite_matrix": process_trace_prerequisite_matrix,
@@ -408,7 +487,7 @@ _ADAPTERS: dict[str, Callable[[dict[str, Any]], list[PlotPlan]]] = {
 def plans_for_spec(spec: dict[str, Any]) -> list[PlotPlan]:
     adapter = _ADAPTERS.get(spec["recipe_id"])
     if adapter is None:
-        raise UnsupportedRecipeError(f"recipe not implemented in renderer v0.2.0: {spec['recipe_id']}")
+        raise UnsupportedRecipeError(f"recipe not implemented in renderer v0.3.0: {spec['recipe_id']}")
     return adapter(spec)
 
 
