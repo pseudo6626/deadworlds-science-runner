@@ -1186,7 +1186,18 @@ jobs:
 
       - name: Validate PyMC runtime
         if: steps.backend.outputs.is_pymc == 'true'
-        run: deadworlds-compute doctor
+        shell: bash
+        run: |
+          python - <<'PY'
+          from importlib.metadata import version
+          expected = {"numpy": "2.1.3", "pymc": "6.3.2", "pytensor": "3.3.4", "arviz": "1.1.0", "arviz-stats": "1.1.0", "xarray": "2025.12.0", "h5netcdf": "1.8.1", "h5py": "3.14.0"}
+          for package, wanted in expected.items():
+              actual = version(package)
+              if actual != wanted:
+                  raise SystemExit(f"{package}: expected {wanted}, got {actual}")
+          import pymc, pytensor, arviz, numpy, xarray, h5netcdf, h5py
+          print("Validated pinned PyMC runtime.")
+          PY
 
       - name: Execute, upload to Drive, and submit to Forge
         env:
