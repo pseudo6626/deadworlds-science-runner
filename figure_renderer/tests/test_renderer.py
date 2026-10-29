@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 from pathlib import Path
@@ -124,7 +125,7 @@ def test_module10_radiative_capture_null_is_not_plotted_as_zero():
 def test_module10_provenance_preserves_formula_and_inputs():
     plan = plans_for_spec(load("m10_measurement_formula_provenance.json"))[0]
     assert plan.kind == "table"
-    assert "E_min = m g |Δh|" in plan.table_rows[0]
+    assert "E_min = m g |Îh|" in plan.table_rows[0]
     assert any("mass_kg=250.0 kg" in cell for cell in plan.table_rows[0])
 
 
@@ -179,3 +180,21 @@ def test_repeat_render_is_byte_deterministic(tmp_path):
     files_b = {f["name"]: f["sha256"] for c in mb["components"] for f in c["files"]}
     assert files_a == files_b
     assert ma["spec_sha256"] == mb["spec_sha256"]
+
+
+def test_worker_canonical_spec_bytes_are_authoritative(tmp_path):
+    spec = load("m10_energy_lower_bound_ledger.json")
+    canonical = json.dumps(spec, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    expected = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    manifest = render_figure_spec(spec, tmp_path, canonical_spec_json=canonical)
+    assert manifest["spec_sha256"] == expected
+    assert manifest["spec_hash_basis"] == "worker_canonical_json_v1"
+    assert manifest["figure_spec_file_sha256"] == hashlib.sha256((tmp_path / "figure_spec.json").read_bytes()).hexdigest()
+
+def test_worker_canonical_spec_object_mismatch_is_rejected(tmp_path):
+    spec = load("m10_energy_lower_bound_ledger.json")
+    wrong = dict(spec)
+    wrong["title"] = "different immutable spec"
+    canonical = json.dumps(wrong, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    with pytest.raises(ValueError, match="does not match supplied FigureSpec"):
+        render_figure_spec(spec, tmp_path, canonical_spec_json=canonical)

@@ -168,11 +168,26 @@ def render_figure_spec(
     output_dir: str | Path,
     *,
     strict_provenance: bool = True,
+    canonical_spec_json: str | None = None,
 ) -> dict[str, Any]:
     validate_figure_spec(spec, strict_provenance=strict_provenance)
     plans = plans_for_spec(spec)
     out = Path(output_dir)
     out.mkdir(parents=True, exist_ok=True)
+
+    if canonical_spec_json is not None:
+        try:
+            canonical_spec = json.loads(canonical_spec_json)
+        except json.JSONDecodeError as exc:
+            raise ValueError("canonical FigureSpec JSON is invalid") from exc
+        if canonical_spec != spec:
+            raise ValueError("canonical FigureSpec JSON does not match supplied FigureSpec")
+        spec_sha256 = hashlib.sha256(canonical_spec_json.encode("utf-8")).hexdigest()
+        spec_hash_basis = "worker_canonical_json_v1"
+    else:
+        local_canonical = json.dumps(spec, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        spec_sha256 = hashlib.sha256(local_canonical.encode("utf-8")).hexdigest()
+        spec_hash_basis = "renderer_sorted_compact_json_v1"
 
     spec_path = out / "figure_spec.json"
     spec_path.write_text(json.dumps(spec, indent=2, ensure_ascii=False, sort_keys=True), encoding="utf-8")
@@ -260,7 +275,9 @@ def render_figure_spec(
             "source_precision": "NEVER_EXCEED_SOURCE",
         },
         "components": emitted,
-        "spec_sha256": _sha256(spec_path),
+        "spec_sha256": spec_sha256,
+        "spec_hash_basis": spec_hash_basis,
+        "figure_spec_file_sha256": _sha256(spec_path),
     }
     manifest_path = out / "render_manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False, sort_keys=True), encoding="utf-8")

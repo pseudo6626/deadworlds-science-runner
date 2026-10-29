@@ -15,9 +15,9 @@ from deadworlds_figures import __version__ as renderer_version
 from deadworlds_figures.render import render_figure_spec
 
 USER_AGENT = f"deadworlds-figure-renderer/{renderer_version}"
-PACKAGE_VERSION = "deadworlds-figure-render-job-v0.1.0"
-BUNDLE_VERSION = "deadworlds-figure-render-bundle-v0.1.0"
-EXPECTED_RENDERER = "deadworlds-figure-renderer-v0.2.0"
+PACKAGE_VERSION = "deadworlds-figure-render-job-v0.2.0"
+BUNDLE_VERSION = "deadworlds-figure-render-bundle-v0.2.0"
+EXPECTED_RENDERER = "deadworlds-figure-renderer-v0.2.1"
 
 
 def sha256_bytes(data: bytes) -> str:
@@ -103,21 +103,35 @@ def main() -> int:
     spec = package.get("figure_spec")
     if not isinstance(spec, dict):
         raise SystemExit("Render package is missing FigureSpec")
+    canonical_spec_json = package.get("figure_spec_canonical_json")
+    if not isinstance(canonical_spec_json, str) or not canonical_spec_json:
+        raise SystemExit("Render package is missing authoritative canonical FigureSpec JSON")
     expected_spec_sha = str(package.get("expected_hashes", {}).get("figure_spec_sha256") or "").lower()
-    got_spec_sha = sha256_json(spec)
+    got_spec_sha = sha256_bytes(canonical_spec_json.encode("utf-8"))
     if got_spec_sha != expected_spec_sha:
-        raise SystemExit("FigureSpec SHA-256 does not match immutable package")
+        raise SystemExit("Canonical FigureSpec SHA-256 does not match immutable package")
+    try:
+        canonical_spec = json.loads(canonical_spec_json)
+    except json.JSONDecodeError as exc:
+        raise SystemExit("Canonical FigureSpec JSON is invalid") from exc
+    if canonical_spec != spec:
+        raise SystemExit("Canonical FigureSpec JSON does not match package FigureSpec")
+    spec = canonical_spec
 
     work = args.out
     rendered = work / "rendered"
     if work.exists():
         shutil.rmtree(work)
     rendered.mkdir(parents=True)
-    manifest = render_figure_spec(spec, rendered, strict_provenance=True)
+    manifest = render_figure_spec(spec, rendered, strict_provenance=True, canonical_spec_json=canonical_spec_json)
     if manifest.get("renderer_version") != EXPECTED_RENDERER:
         raise SystemExit("Rendered manifest renderer version mismatch")
-    if manifest.get("spec_sha256") != hashlib.sha256((rendered / "figure_spec.json").read_bytes()).hexdigest():
-        raise SystemExit("Rendered manifest FigureSpec file hash mismatch")
+    if manifest.get("spec_sha256") != expected_spec_sha:
+        raise SystemExit("Rendered manifest canonical FigureSpec hash mismatch")
+    if manifest.get("spec_hash_basis") != "worker_canonical_json_v1":
+        raise SystemExit("Rendered manifest FigureSpec hash basis mismatch")
+    if manifest.get("figure_spec_file_sha256") != hashlib.sha256((rendered / "figure_spec.json").read_bytes()).hexdigest():
+        raise SystemExit("Rendered manifest FigureSpec sidecar hash mismatch")
 
     bundle_path = work / f"deadworlds-render-{job_id}.zip"
     deterministic_zip(rendered, bundle_path)

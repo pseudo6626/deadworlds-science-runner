@@ -172,7 +172,7 @@ jobs:
           python - <<'PY'
           from importlib.metadata import version
           expected = {
-              "deadworlds-figure-renderer": "0.2.0",
+              "deadworlds-figure-renderer": "0.2.1",
               "matplotlib": "3.10.8",
               "numpy": "2.3.5",
               "jsonschema": "4.26.0",
@@ -204,7 +204,7 @@ jobs:
             echo
             echo "- Render job: \`$RENDER_JOB_ID\`"
             echo "- Forge environment: \`$FORGE_ENVIRONMENT\`"
-            echo "- Renderer: \`deadworlds-figure-renderer-v0.2.0\`"
+            echo "- Renderer: \`deadworlds-figure-renderer-v0.2.1\`"
             echo "- Status: **verified render bundle submitted to Forge**"
             echo
             echo "Numeric plotting data came only from the immutable FigureSpec bindings."
