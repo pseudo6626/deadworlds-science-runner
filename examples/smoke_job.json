@@ -1,0 +1,53 @@
+{
+  "package_version": "deadworlds-model-comparison-compute-job-v0.1.0",
+  "sourceRule": "WORKER_ISSUED_IMMUTABLE_COMPUTE_JOB",
+  "manifest": {
+    "job_version": "deadworlds-model-comparison-compute-job-v0.1.0",
+    "analysis_id": "smoke-gaussian-001",
+    "comparison_group_id": "smoke:gaussian",
+    "candidate_model_id": "normal-location",
+    "source_module": "test_fixture",
+    "source_version": "v1",
+    "random_seed": 20261028,
+    "model": {
+      "plugin": "gaussian_location_exact",
+      "parameters": {
+        "prior_mean": 0.0,
+        "prior_sd": 2.0,
+        "known_sigma": 1.0,
+        "chains": 4,
+        "draws": 1000
+      }
+    },
+    "input_data": {
+      "y": [
+        0.8,
+        1.0,
+        1.2,
+        0.9,
+        1.1
+      ]
+    },
+    "evaluation_plan": {
+      "validation_unit_status": "DEFINED_AND_JUSTIFIED",
+      "dependence_structure_status": "MODELED_OR_RESPECTED",
+      "predeclared_discrepancies": [
+        "sample_mean"
+      ],
+      "heldout_or_cv_partition_status": "AVAILABLE",
+      "sbc_status": "NOT_RUN",
+      "prior_predictive_status": "NOT_RUN",
+      "abc_summary_discrimination_status": "UNRESOLVED",
+      "predictive_validation_method": "PSIS_LOO",
+      "observed_variable": "y",
+      "partition_sha256": null
+    },
+    "artifact_format": "ARVIZ_INFERENCE_DATA_NETCDF"
+  },
+  "expected_hashes": {
+    "job_manifest_sha256": "fc0c6ae5ece4c0009054eba7d6eb2c9228efcc2e72749181d3a180b62ab1a00b",
+    "input_sha256": "17d395f1ab10891aded31836a1c3d868d8248d40da5b61c4c3554b0fa47b4d67",
+    "model_spec_sha256": "460204b9b84581c9b12f7a0b41cae003db75511372ed0f82bc0028b4eac5e370",
+    "evaluation_plan_sha256": "c234b65f3475b11fbae9bfc60e34343e57b72f67c3c63e7e6312d2214e69eaa2"
+  }
+}
