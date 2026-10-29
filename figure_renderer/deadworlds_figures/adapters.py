@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+import math
 from typing import Any, Callable
 
 from .errors import FigureSpecError, UnsupportedRecipeError
@@ -132,6 +133,100 @@ def multistar_forcing_contributors(spec: dict[str, Any]) -> list[PlotPlan]:
         values.append(float(row["orbitMeanBolometricFluxSearth"]))
     completeness = _text(b.get("forcingCompleteness"))
     return [_value_bar(spec["title"],"multistar_forcing_contributors",labels,values,x_label="Orbit-mean bolometric flux contribution (S_earth)",csv_rows=resolved,note=f"Resolved stellar contributions are shown separately before summation. Forcing completeness: {completeness}. Unresolved contributors are omitted, never plotted as zero.")]
+
+
+# ---------------- Module 2: Geochemical Cycling ----------------
+
+def rock_metal_ice_composition(spec: dict[str, Any]) -> list[PlotPlan]:
+    rows = spec["data"]["bindings"].get("solidComposition") or []
+    if not rows:
+        raise FigureSpecError("solidComposition is empty")
+    labels, values, csv_rows = [], [], []
+    for row in rows:
+        name = _text(row.get("name"))
+        value = row.get("fraction")
+        if name == "UNRESOLVED":
+            raise FigureSpecError("solid composition row lacks a broad class name")
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not 0 <= float(value) <= 1:
+            raise FigureSpecError("solid composition has invalid normalized fraction")
+        labels.append(name)
+        values.append(float(value))
+        csv_rows.append(dict(row))
+    total = sum(values)
+    if total <= 0 or abs(total - 1.0) > 1e-4:
+        raise FigureSpecError("solidComposition normalized fractions must sum to one")
+    return [_value_bar(
+        spec["title"], "rock_metal_ice_composition", labels, values,
+        x_label="Normalized broad composition fraction", csv_rows=csv_rows,
+        note="DSS broad rock/metal/ice composition only. These fractions are not a mineral assemblage, modal mineralogy, or mantle/crust assay.",
+    )]
+
+
+def atmospheric_element_budget(spec: dict[str, Any]) -> list[PlotPlan]:
+    b = spec["data"]["bindings"]
+    rows = b.get("elements") or []
+    if not rows:
+        raise FigureSpecError("atmospheric element budget is empty")
+    coverage = b.get("recognizedMoleFraction")
+    if isinstance(coverage, bool) or not isinstance(coverage, (int, float)) or not 0 <= float(coverage) <= 1:
+        raise FigureSpecError("recognizedMoleFraction is invalid")
+    labels, values, csv_rows = [], [], []
+    for row in rows:
+        element = _text(row.get("element"))
+        value = row.get("moles_per_mole_atmosphere")
+        if element == "UNRESOLVED":
+            raise FigureSpecError("atmospheric element row lacks element identity")
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or float(value) < 0:
+            raise FigureSpecError("atmospheric element row has invalid stoichiometric amount")
+        labels.append(element)
+        values.append(float(value))
+        csv_rows.append(dict(row))
+    if not any(v > 0 for v in values):
+        raise FigureSpecError("atmospheric element budget has no positive stoichiometric amounts")
+    return [_value_bar(
+        spec["title"], "atmospheric_element_budget", labels, values,
+        x_label="Stoichiometric amount (mol element / mol measured atmosphere)", csv_rows=csv_rows,
+        note=(
+            f"Bookkeeping from recognized measured gas formulas only; recognized-gas coverage = "
+            f"{float(coverage):.4g} of measured atmosphere. Unrecognized gases are omitted, not "
+            "treated as zero elemental content. This is not a whole-planet elemental inventory."
+        ),
+    )]
+
+
+def redox_ratio_diagnostics(spec: dict[str, Any]) -> list[PlotPlan]:
+    b = spec["data"]["bindings"]
+    if (
+        b.get("mantleOxygenFugacity") is not None
+        or b.get("redoxBufferOffset") is not None
+        or b.get("aqueousPh") is not None
+    ):
+        raise FigureSpecError("atmospheric gas-ratio figure may not contain mantle fO2, redox-buffer, or aqueous-pH results")
+    rows = b.get("gasRedoxRatios") or []
+    if not rows:
+        raise FigureSpecError("gasRedoxRatios is empty")
+    labels, values, csv_rows = [], [], []
+    for row in rows:
+        label = _text(row.get("label"))
+        ratio = row.get("ratio")
+        logged = row.get("log10_ratio")
+        if label == "UNRESOLVED":
+            raise FigureSpecError("gas redox-ratio row lacks label")
+        if isinstance(ratio, bool) or not isinstance(ratio, (int, float)) or float(ratio) <= 0:
+            raise FigureSpecError("gas redox-ratio row has invalid ratio")
+        if isinstance(logged, bool) or not isinstance(logged, (int, float)):
+            raise FigureSpecError("gas redox-ratio row lacks numeric log10_ratio")
+        if abs(float(logged) - math.log10(float(ratio))) > 2e-5:
+            raise FigureSpecError("gas redox-ratio log10 value is inconsistent with ratio")
+        labels.append(label)
+        values.append(float(logged))
+        csv_rows.append(dict(row))
+    return [_value_bar(
+        spec["title"], "redox_ratio_diagnostics", labels, values,
+        x_label="log10 measured atmospheric gas ratio", csv_rows=csv_rows,
+        note="Ratios describe the measured present atmosphere only. They are not mantle oxygen fugacity, an FMQ/IW buffer offset, aqueous pH, or a unique geochemical history.",
+    )]
+
 
 # ---------------- Module 10: Technological Energetics ----------------
 
@@ -470,6 +565,9 @@ _ADAPTERS: dict[str, Callable[[dict[str, Any]], list[PlotPlan]]] = {
     "m01_equilibrium_temperature_albedo_sensitivity": equilibrium_temperature_albedo_sensitivity,
     "m01_escape_retention_sensitivity": escape_retention_sensitivity,
     "m01_multistar_forcing_contributors": multistar_forcing_contributors,
+    "m02_atmospheric_element_budget": atmospheric_element_budget,
+    "m02_redox_ratio_diagnostics": redox_ratio_diagnostics,
+    "m02_rock_metal_ice_composition": rock_metal_ice_composition,
     "m10_energy_lower_bound_ledger": energy_lower_bound_ledger,
     "m10_energy_power_identifiability": energy_power_identifiability,
     "m10_process_trace_prerequisite_matrix": process_trace_prerequisite_matrix,
@@ -487,7 +585,7 @@ _ADAPTERS: dict[str, Callable[[dict[str, Any]], list[PlotPlan]]] = {
 def plans_for_spec(spec: dict[str, Any]) -> list[PlotPlan]:
     adapter = _ADAPTERS.get(spec["recipe_id"])
     if adapter is None:
-        raise UnsupportedRecipeError(f"recipe not implemented in renderer v0.3.0: {spec['recipe_id']}")
+        raise UnsupportedRecipeError(f"recipe not implemented in renderer v0.4.0: {spec['recipe_id']}")
     return adapter(spec)
 
 
