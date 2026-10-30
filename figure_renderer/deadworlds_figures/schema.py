@@ -7,7 +7,7 @@ its epistemic/provenance requirements.
 
 FIGURE_SPEC_VERSION = "deadworlds-figure-spec-v1"
 VIZ_CONTRACT_VERSION = "deadworlds-viz-contract-v1"
-RENDERER_VERSION = "deadworlds-figure-renderer-v0.7.0"
+RENDERER_VERSION = "deadworlds-figure-renderer-v0.8.0"
 
 FIGURE_SPEC_SCHEMA = {
     "type": "object",
