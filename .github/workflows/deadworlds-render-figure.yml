@@ -51,7 +51,7 @@ jobs:
           python - <<'PY'
           from importlib.metadata import version
           expected = {
-              "deadworlds-figure-renderer": "0.5.0",
+              "deadworlds-figure-renderer": "0.6.0",
               "matplotlib": "3.10.8",
               "numpy": "2.3.5",
               "jsonschema": "4.26.0",
