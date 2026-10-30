@@ -6,6 +6,7 @@ from typing import Any, Callable
 
 from .errors import FigureSpecError, UnsupportedRecipeError
 from .plans import LineSeries, PlotPlan
+from .adapters_04_06 import ADAPTERS_04_06
 
 
 def _text(value: Any) -> str:
@@ -740,11 +741,13 @@ _ADAPTERS: dict[str, Callable[[dict[str, Any]], list[PlotPlan]]] = {
     "m15a_adequacy_vs_preference_contract": adequacy_preference_contract,
 }
 
+_ADAPTERS.update(ADAPTERS_04_06)
+
 
 def plans_for_spec(spec: dict[str, Any]) -> list[PlotPlan]:
     adapter = _ADAPTERS.get(spec["recipe_id"])
     if adapter is None:
-        raise UnsupportedRecipeError(f"recipe not implemented in renderer v0.5.0: {spec['recipe_id']}")
+        raise UnsupportedRecipeError(f"recipe not implemented in renderer v0.6.0: {spec['recipe_id']}")
     return adapter(spec)
 
 

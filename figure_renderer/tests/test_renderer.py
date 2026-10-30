@@ -20,7 +20,7 @@ def test_renderer_version_identity_is_consistent():
     from deadworlds_figures.schema import RENDERER_VERSION
 
     expected = f"deadworlds-figure-renderer-v{package_version}"
-    assert package_version == "0.5.0"
+    assert package_version == "0.6.0"
     assert RENDERER_VERSION == expected
 
 
@@ -40,6 +40,20 @@ def test_supported_recipe_set_is_explicit():
         "m03_capture_efficiency_sensitivity",
         "m03_energy_channel_identifiability",
         "m03_trophic_transfer_sensitivity",
+        "m04_dynamic_pressure_grid",
+        "m04_froude_similarity_grid",
+        "m04_gravity_jump_sensitivity",
+        "m04_lift_loading_grid",
+        "m04_self_weight_support_scaling",
+        "m04_terminal_velocity_grid",
+        "m05_acoustic_sound_speed_sensitivity",
+        "m05_channel_identifiability",
+        "m05_diffraction_resolution_sensitivity",
+        "m05_stellar_emission_peak_context",
+        "m06_channel_identifiability_matrix",
+        "m06_multimodal_constraint_map",
+        "m06_sender_medium_receiver_prerequisites",
+        "m06_visual_angular_geometry_sensitivity",
         "m10_energy_lower_bound_ledger",
         "m10_energy_power_identifiability",
         "m10_measurement_formula_provenance",

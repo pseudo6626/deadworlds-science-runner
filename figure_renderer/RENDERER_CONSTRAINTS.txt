@@ -1,4 +1,4 @@
-# Exact stack used for Deadworlds Figure Renderer v0.5.0 validation, 2026-10-29
+# Exact stack used for Deadworlds Figure Renderer v0.6.0 validation, 2026-10-29
 matplotlib==3.10.8
 numpy==2.3.5
 jsonschema==4.26.0

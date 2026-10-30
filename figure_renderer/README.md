@@ -1,4 +1,4 @@
-# Deadworlds Figure Renderer v0.5.0
+# Deadworlds Figure Renderer v0.6.0
 
 Deterministic static scientific renderer for the Deadworlds `deadworlds-figure-spec-v1` contract.
 
@@ -6,7 +6,7 @@ The renderer does not invent numeric plot data. Numeric values come only from `F
 
 ## Hosted recipe coverage
 
-Renderer v0.5.0 currently supports 20 hosted recipes across Modules 1, 2, 3, 10, 12, and 15.
+Renderer v0.6.0 currently supports 34 hosted recipes across Modules 1-6, 10, 12, and 15.
 
 ### Module 1 — Atmospheric Evolution
 
@@ -31,6 +31,35 @@ These adapters remain deliberately conservative. They do not convert broad DSS c
 - `m03_energy_channel_identifiability`
 
 Module 3 renders only deterministic assumption sensitivities and evidence-status/identifiability information. Capture efficiency, actual trophic-transfer efficiency, productivity, biomass, and channel energy magnitudes remain unresolved unless independently measured or modeled by a later licensed analysis. The 3D spatial-productivity recipe remains unsupported until spatially resolved productivity evidence exists.
+
+### Module 4 — Biomechanics Scaling
+
+- `m04_gravity_jump_sensitivity`
+- `m04_froude_similarity_grid`
+- `m04_dynamic_pressure_grid`
+- `m04_terminal_velocity_grid`
+- `m04_lift_loading_grid`
+- `m04_self_weight_support_scaling`
+
+Module 4 renders explicit mechanics sensitivity grids only. Present-atmosphere aerodynamic calculations remain labeled `PRESENT_STATE_ONLY` and are never substituted for the unresolved biosphere-era medium. Launch speed, organism scale, gait transitions, ballistic coefficient, flight feasibility, wing loading, material strength, failure size, and locomotor power are not inferred.
+
+### Module 5 — Sensory Ecology
+
+- `m05_stellar_emission_peak_context`
+- `m05_acoustic_sound_speed_sensitivity`
+- `m05_diffraction_resolution_sensitivity`
+- `m05_channel_identifiability`
+
+Module 5 separates physical carrier context from evolved sensory biology. Wien-law stellar peaks are not surface spectra or receptor optima; present-medium sound-speed cases are not paleo acoustic active space; diffraction grids are not actual visual acuity. Carrier availability never becomes sensory prevalence or importance.
+
+### Module 6 — Non-acoustic Communication
+
+- `m06_channel_identifiability_matrix`
+- `m06_visual_angular_geometry_sensitivity`
+- `m06_sender_medium_receiver_prerequisites`
+- `m06_multimodal_constraint_map`
+
+Module 6 figures use only the public physical-carrier/prerequisite ledger. Hidden reconstructed sender or receiver biology is forbidden from FigureSpec bindings and public derived evidence. Sender and receiver prerequisites remain unresolved from public evidence; angular geometry does not become visibility or range, and the constraint map does not rank channels or infer evolved preference. Active magnetic signaling remains blocked by the v1 module policy.
 
 ### Module 10 — Technological Energetics
 
