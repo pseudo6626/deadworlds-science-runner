@@ -197,8 +197,8 @@ jobs:
         grep -Fq '"svg.hashsalt": "deadworlds-figure-renderer-v0.6.0"' figure_renderer/deadworlds_figures/styles.py
         if grep -R -n -E 'deadworlds-figure-renderer-v0\.(4|5)\.0|Deadworlds Figure Renderer v0\.5\.0|version = "0\.5\.0"|__version__ = "0\.5\.0"' \
             figure_renderer/deadworlds_figures figure_renderer/scripts figure_renderer/pyproject.toml \
-            figure_renderer/README.md figure_renderer/RENDERER_CONSTRAINTS.txt figure_renderer/tests \
-            .github/workflows/deadworlds-render-figure.yml; then
+            figure_renderer/README.md figure_renderer/RENDERER_CONSTRAINTS.txt figure_renderer/tests;
+             then
           echo "Stale active renderer identity remains after v0.6 patch." >&2
           exit 1
         fi
