@@ -12,6 +12,12 @@ on:
       - '.github/workflows/deadworlds-render-figure.yml'
   repository_dispatch:
     types: [deadworlds-render-figure-v1]
+  workflow_dispatch:
+    inputs:
+      render_job_id:
+        description: "Existing sandbox render job UUID"
+        required: true
+        type: string
 
 jobs:
   renderer-regression:
@@ -45,7 +51,7 @@ jobs:
           python - <<'PY'
           from importlib.metadata import version
           expected = {
-              "deadworlds-figure-renderer": "0.4.0",
+              "deadworlds-figure-renderer": "0.5.0",
               "matplotlib": "3.10.8",
               "numpy": "2.3.5",
               "jsonschema": "4.26.0",
@@ -64,18 +70,20 @@ jobs:
   render:
     name: Render immutable scientific FigureSpec
     if: >-
-      github.event_name == 'repository_dispatch' &&
-      github.event.client_payload.render_job_id != '' &&
-      github.event.client_payload.render_job_id != null &&
-      github.event.client_payload.forge_environment != '' &&
-      github.event.client_payload.forge_environment != null
+      (github.event_name == 'repository_dispatch' &&
+       github.event.client_payload.render_job_id != '' &&
+       github.event.client_payload.render_job_id != null &&
+       github.event.client_payload.forge_environment != '' &&
+       github.event.client_payload.forge_environment != null) ||
+      (github.event_name == 'workflow_dispatch' &&
+       inputs.render_job_id != '')
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     permissions:
       contents: read
       id-token: write
     concurrency:
-      group: deadworlds-render-${{ github.event.client_payload.render_job_id }}
+      group: deadworlds-render-${{ github.event_name == 'workflow_dispatch' && inputs.render_job_id || github.event.client_payload.render_job_id }}
       cancel-in-progress: false
 
     steps:
@@ -92,8 +100,8 @@ jobs:
       - name: Validate dispatch identity and route
         id: route
         env:
-          RENDER_JOB_ID: ${{ github.event.client_payload.render_job_id }}
-          FORGE_ENVIRONMENT: ${{ github.event.client_payload.forge_environment }}
+          RENDER_JOB_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.render_job_id || github.event.client_payload.render_job_id }}
+          FORGE_ENVIRONMENT: ${{ github.event_name == 'workflow_dispatch' && 'sandbox' || github.event.client_payload.forge_environment }}
         run: |
           python - <<'PY'
           import os, re
@@ -111,6 +119,7 @@ jobs:
               raise SystemExit("forge_environment must be exactly sandbox or production")
 
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write(f"render_job_id={job}\n")
               fh.write(f"forge_environment={environment}\n")
               fh.write(f"forge_base={forge_bases[environment]}\n")
 
@@ -131,7 +140,7 @@ jobs:
 
       - name: Claim immutable FigureSpec bundle
         env:
-          RENDER_JOB_ID: ${{ github.event.client_payload.render_job_id }}
+          RENDER_JOB_ID: ${{ steps.route.outputs.render_job_id }}
           DEADWORLDS_FORGE_BASE: ${{ steps.route.outputs.forge_base }}
         run: |
           python figure_renderer/scripts/claim_render_bundle.py \
@@ -153,7 +162,7 @@ jobs:
           python - <<'PY'
           from importlib.metadata import version
           expected = {
-              "deadworlds-figure-renderer": "0.4.0",
+              "deadworlds-figure-renderer": "0.5.0",
               "matplotlib": "3.10.8",
               "numpy": "2.3.5",
               "jsonschema": "4.26.0",
@@ -174,10 +183,37 @@ jobs:
           set -euo pipefail
           python figure_renderer/scripts/run_render_bundle.py "$BUNDLE" --out "$OUTDIR"
 
+      - name: Clean sandbox artifact after manual E2E
+        if: success() && github.event_name == 'workflow_dispatch'
+        env:
+          BUNDLE: ${{ runner.temp }}/RENDER_BUNDLE.json
+          RENDER_JOB_ID: ${{ steps.route.outputs.render_job_id }}
+          DEADWORLDS_FORGE_BASE: ${{ steps.route.outputs.forge_base }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          token="$(python - "$BUNDLE" <<'PY'
+          import json, sys
+          with open(sys.argv[1], encoding="utf-8") as fh:
+              print(json.load(fh)["submission"]["token"])
+          PY
+          )"
+          response="$(curl --fail-with-body --silent --show-error \
+            -X POST \
+            -H "X-Deadworlds-Capability: $token" \
+            "$DEADWORLDS_FORGE_BASE/v1/render/jobs/$RENDER_JOB_ID/cleanup")"
+          python - "$response" <<'PY'
+          import json, sys
+          data = json.loads(sys.argv[1])
+          if not data.get("ok") or not data.get("deleted"):
+              raise SystemExit(f"Sandbox cleanup did not confirm deletion: {data}")
+          print(f"Cleaned sandbox render job {data['render_job_id']} and its Drive artifact.")
+          PY
+
       - name: Write run summary
         if: success()
         env:
-          RENDER_JOB_ID: ${{ github.event.client_payload.render_job_id }}
+          RENDER_JOB_ID: ${{ steps.route.outputs.render_job_id }}
           FORGE_ENVIRONMENT: ${{ steps.route.outputs.forge_environment }}
         run: |
           {
@@ -185,7 +221,7 @@ jobs:
             echo
             echo "- Job: \`$RENDER_JOB_ID\`"
             echo "- Forge environment: \`$FORGE_ENVIRONMENT\`"
-            echo "- Renderer: \`deadworlds-figure-renderer-v0.4.0\`"
+            echo "- Renderer: \`deadworlds-figure-renderer-v0.5.0\`"
             echo "- Status: **verified bundle submitted to Forge**"
             echo
             echo "Numeric plot data came only from the immutable FigureSpec bindings."
