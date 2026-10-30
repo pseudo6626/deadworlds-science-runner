@@ -9,6 +9,7 @@ from .plans import LineSeries, PlotPlan
 from .adapters_04_06 import ADAPTERS_04_06
 from .adapters_09_11_13_14 import ADAPTERS_09_11_13_14
 from .adapters_07_08 import ADAPTERS_07_08
+from .adapters_12_15_provenance import ADAPTERS_12_15_PROVENANCE
 
 
 def _text(value: Any) -> str:
@@ -746,12 +747,13 @@ _ADAPTERS: dict[str, Callable[[dict[str, Any]], list[PlotPlan]]] = {
 _ADAPTERS.update(ADAPTERS_04_06)
 _ADAPTERS.update(ADAPTERS_09_11_13_14)
 _ADAPTERS.update(ADAPTERS_07_08)
+_ADAPTERS.update(ADAPTERS_12_15_PROVENANCE)
 
 
 def plans_for_spec(spec: dict[str, Any]) -> list[PlotPlan]:
     adapter = _ADAPTERS.get(spec["recipe_id"])
     if adapter is None:
-        raise UnsupportedRecipeError(f"recipe not implemented in renderer v0.8.0: {spec['recipe_id']}")
+        raise UnsupportedRecipeError(f"recipe not implemented in renderer v0.9.0: {spec['recipe_id']}")
     return adapter(spec)
 
 

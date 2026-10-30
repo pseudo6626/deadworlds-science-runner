@@ -20,7 +20,7 @@ def test_renderer_version_identity_is_consistent():
     from deadworlds_figures.schema import RENDERER_VERSION
 
     expected = f"deadworlds-figure-renderer-v{package_version}"
-    assert package_version == "0.8.0"
+    assert package_version == "0.9.0"
     assert RENDERER_VERSION == expected
 
 
@@ -73,6 +73,7 @@ def test_supported_recipe_set_is_explicit():
         "m11a_population_inference_prerequisites",
         "m11a_proxy_concordance_matrix",
         "m12a_diversity_distance_by_phase",
+        "m12a_trait_coding_provenance",
         "m12a_trait_frequency_by_phase",
         "m12a_transmission_model_identifiability",
         "m13a_alternative_explanation_matrix",
@@ -85,6 +86,7 @@ def test_supported_recipe_set_is_explicit():
         "m14a_sequence_reading_order",
         "m15a_adequacy_vs_preference_contract",
         "m15a_evaluation_method_eligibility",
+        "m15a_model_provenance",
         "m15a_validation_diagnostics",
     )
 

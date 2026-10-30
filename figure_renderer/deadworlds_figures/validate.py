@@ -12,6 +12,7 @@ from .schema import FIGURE_SPEC_SCHEMA
 from .validate_04_06 import validate_module_04_06
 from .validate_09_11_13_14 import validate_module_09_11_13_14
 from .validate_07_08 import validate_module_07_08
+from .validate_12_15_provenance import validate_module_12_15_provenance
 
 _VALIDATOR = Draft202012Validator(FIGURE_SPEC_SCHEMA)
 _FORBIDDEN_KEY = re.compile(
@@ -59,7 +60,7 @@ def validate_figure_spec(spec: dict[str, Any], *, strict_provenance: bool = True
         raise FigureSpecError(f"FigureSpec schema violation at {location}: {first.message}")
 
     if spec["dimensionality"] != "2d":
-        raise FigureSpecError("renderer v0.8.0 accepts only 2d FigureSpecs")
+        raise FigureSpecError("renderer v0.9.0 accepts only 2d FigureSpecs")
     renderer = spec["renderer"]
     if renderer["preferred"] != "matplotlib" and "matplotlib" not in renderer.get("fallbacks", []):
         raise FigureSpecError("FigureSpec has no licensed matplotlib renderer path")
@@ -141,5 +142,6 @@ def validate_figure_spec(spec: dict[str, Any], *, strict_provenance: bool = True
     validate_module_04_06(spec)
     validate_module_09_11_13_14(spec)
     validate_module_07_08(spec)
+    validate_module_12_15_provenance(spec)
     _finite_numbers(bindings)
     return spec

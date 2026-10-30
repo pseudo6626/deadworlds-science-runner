@@ -1,4 +1,4 @@
-# Deadworlds Figure Renderer v0.8.0
+# Deadworlds Figure Renderer v0.9.0
 
 Deterministic static scientific renderer for the Deadworlds `deadworlds-figure-spec-v1` contract.
 
@@ -6,7 +6,7 @@ The renderer does not invent numeric plot data. Numeric values come only from `F
 
 ## Hosted recipe coverage
 
-Renderer v0.8.0 currently supports 49 hosted recipes across Modules 1-6, 9-15 except Modules 7-8 and the blocked M11 settlement-posterior recipe.
+Renderer v0.9.0 currently supports 49 hosted recipes across Modules 1-6, 9-15 except Modules 7-8 and the blocked M11 settlement-posterior recipe.
 
 ### Module 1 — Atmospheric Evolution
 

@@ -165,7 +165,7 @@ def test_modules_04_06_validate_plan_and_render(recipe: str, tmp_path: Path):
     plans = plans_for_spec(spec)
     assert plans and all(plan.note for plan in plans)
     manifest = render_figure_spec(spec, tmp_path / recipe)
-    assert manifest["renderer_version"] == "deadworlds-figure-renderer-v0.8.0"
+    assert manifest["renderer_version"] == "deadworlds-figure-renderer-v0.9.0"
     assert manifest["recipe_id"] == recipe
     assert manifest["components"]
     assert manifest["warnings"] == []
