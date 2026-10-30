@@ -1,0 +1,269 @@
+name: Deadworlds renderer v0.6 Modules 4-6 batch
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deadworlds-renderer-v06-m456-batch
+  cancel-in-progress: false
+
+jobs:
+  batch:
+    name: Build, test, and land renderer v0.6 M4-M6
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Check out main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 2
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: figure_renderer/RENDERER_CONSTRAINTS.txt
+
+      - name: Verify audited v0.5 baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git branch --show-current)" = "main"
+          git fetch origin main
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"
+          test ! -e figure_renderer/deadworlds_figures/adapters_04_06.py
+          test ! -e figure_renderer/deadworlds_figures/validate_04_06.py
+          grep -Fq '__version__ = "0.5.0"' figure_renderer/deadworlds_figures/__init__.py
+          grep -Fq 'RENDERER_VERSION = "deadworlds-figure-renderer-v0.5.0"' figure_renderer/deadworlds_figures/schema.py
+          grep -Fq 'version = "0.5.0"' figure_renderer/pyproject.toml
+          grep -Fq 'EXPECTED_RENDERER = "deadworlds-figure-renderer-v0.5.0"' figure_renderer/scripts/run_render_bundle.py
+          grep -Fq '"svg.hashsalt": "deadworlds-figure-renderer-v0.4.0"' figure_renderer/deadworlds_figures/styles.py
+          grep -Fq 'm03_trophic_transfer_sensitivity' figure_renderer/deadworlds_figures/adapters.py
+          if grep -Fq 'm04_gravity_jump_sensitivity' figure_renderer/deadworlds_figures/adapters.py; then
+            echo "M4 renderer support already exists; refusing to apply batch twice." >&2
+            exit 1
+          fi
+          grep -Fq 'deadworlds-figure-renderer": "0.5.0"' .github/workflows/deadworlds-render-figure.yml
+          echo "Validated expected renderer v0.5 baseline."
+
+      - name: Add M4-M6 renderer adapters, firewalls, and tests
+        shell: bash
+        env:
+          ADAPTERS_B64: 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
+          VALIDATE_B64: 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
+          TESTS_B64: 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
+        run: |
+          set -euo pipefail
+          python - <<'PYCODE'
+          import base64, gzip, os
+          from pathlib import Path
+          payloads = {
+              Path("figure_renderer/deadworlds_figures/adapters_04_06.py"): os.environ["ADAPTERS_B64"],
+              Path("figure_renderer/deadworlds_figures/validate_04_06.py"): os.environ["VALIDATE_B64"],
+              Path("figure_renderer/tests/test_modules_04_06.py"): os.environ["TESTS_B64"],
+          }
+          for path, encoded in payloads.items():
+              path.parent.mkdir(parents=True, exist_ok=True)
+              path.write_bytes(gzip.decompress(base64.b64decode(encoded)))
+              print(f"wrote {path}")
+          PYCODE
+
+      - name: Patch renderer v0.6 release identity and registry
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PYCODE'
+          from pathlib import Path
+
+          def replace_exact(path, old, new, count=None):
+              p = Path(path)
+              text = p.read_text(encoding="utf-8")
+              found = text.count(old)
+              if found == 0:
+                  raise SystemExit(f"{path}: baseline text not found: {old!r}")
+              if count is not None and found != count:
+                  raise SystemExit(f"{path}: expected {count} matches for {old!r}, got {found}")
+              p.write_text(text.replace(old, new), encoding="utf-8")
+              print(f"patched {path}: {found} replacement(s)")
+
+          replace_exact("figure_renderer/deadworlds_figures/__init__.py", '__version__ = "0.5.0"', '__version__ = "0.6.0"', 1)
+          replace_exact("figure_renderer/pyproject.toml", 'version = "0.5.0"', 'version = "0.6.0"', 1)
+          replace_exact("figure_renderer/deadworlds_figures/schema.py", 'RENDERER_VERSION = "deadworlds-figure-renderer-v0.5.0"', 'RENDERER_VERSION = "deadworlds-figure-renderer-v0.6.0"', 1)
+          replace_exact("figure_renderer/scripts/run_render_bundle.py", 'EXPECTED_RENDERER = "deadworlds-figure-renderer-v0.5.0"', 'EXPECTED_RENDERER = "deadworlds-figure-renderer-v0.6.0"', 1)
+          replace_exact("figure_renderer/deadworlds_figures/styles.py", '"svg.hashsalt": "deadworlds-figure-renderer-v0.4.0"', '"svg.hashsalt": "deadworlds-figure-renderer-v0.6.0"', 1)
+          replace_exact("figure_renderer/RENDERER_CONSTRAINTS.txt", 'Deadworlds Figure Renderer v0.5.0', 'Deadworlds Figure Renderer v0.6.0', 1)
+
+          p = Path("figure_renderer/deadworlds_figures/adapters.py")
+          text = p.read_text(encoding="utf-8")
+          import_anchor = "from .plans import LineSeries, PlotPlan\n"
+          if import_anchor not in text or "ADAPTERS_04_06" in text:
+              raise SystemExit("adapters.py import baseline mismatch")
+          text = text.replace(import_anchor, import_anchor + "from .adapters_04_06 import ADAPTERS_04_06\n", 1)
+          marker = "\n\ndef plans_for_spec(spec: dict[str, Any]) -> list[PlotPlan]:"
+          pos = text.find(marker)
+          if pos < 0:
+              raise SystemExit("adapters.py registry marker missing")
+          text = text[:pos] + "\n_ADAPTERS.update(ADAPTERS_04_06)\n" + text[pos:]
+          text = text.replace("recipe not implemented in renderer v0.5.0", "recipe not implemented in renderer v0.6.0", 1)
+          p.write_text(text, encoding="utf-8")
+
+          p = Path("figure_renderer/deadworlds_figures/validate.py")
+          text = p.read_text(encoding="utf-8")
+          anchor = "from .schema import FIGURE_SPEC_SCHEMA\n"
+          if anchor not in text or "validate_module_04_06" in text:
+              raise SystemExit("validate.py import baseline mismatch")
+          text = text.replace(anchor, anchor + "from .validate_04_06 import validate_module_04_06\n", 1)
+          text = text.replace('renderer v0.5.0 accepts only 2d FigureSpecs', 'renderer v0.6.0 accepts only 2d FigureSpecs', 1)
+          marker = "    _finite_numbers(bindings)\n    return spec\n"
+          if marker not in text:
+              raise SystemExit("validate.py terminal validation marker missing")
+          text = text.replace(marker, "    validate_module_04_06(spec)\n    _finite_numbers(bindings)\n    return spec\n", 1)
+          p.write_text(text, encoding="utf-8")
+
+          p = Path(".github/workflows/deadworlds-render-figure.yml")
+          text = p.read_text(encoding="utf-8")
+          n = text.count("0.5.0")
+          if n < 3:
+              raise SystemExit(f"permanent render workflow expected >=3 v0.5.0 references, got {n}")
+          p.write_text(text.replace("0.5.0", "0.6.0"), encoding="utf-8")
+
+          p = Path("figure_renderer/tests/test_renderer.py")
+          text = p.read_text(encoding="utf-8")
+          if 'assert package_version == "0.5.0"' not in text:
+              raise SystemExit("test_renderer version baseline missing")
+          text = text.replace('assert package_version == "0.5.0"', 'assert package_version == "0.6.0"', 1)
+          recipe_anchor = '        "m10_energy_lower_bound_ledger",\n'
+          if recipe_anchor not in text or '"m04_gravity_jump_sensitivity"' in text:
+              raise SystemExit("test_renderer supported-recipe baseline mismatch")
+          additions = '''        "m04_dynamic_pressure_grid",\n        "m04_froude_similarity_grid",\n        "m04_gravity_jump_sensitivity",\n        "m04_lift_loading_grid",\n        "m04_self_weight_support_scaling",\n        "m04_terminal_velocity_grid",\n        "m05_acoustic_sound_speed_sensitivity",\n        "m05_channel_identifiability",\n        "m05_diffraction_resolution_sensitivity",\n        "m05_stellar_emission_peak_context",\n        "m06_channel_identifiability_matrix",\n        "m06_multimodal_constraint_map",\n        "m06_sender_medium_receiver_prerequisites",\n        "m06_visual_angular_geometry_sensitivity",\n'''
+          text = text.replace(recipe_anchor, additions + recipe_anchor, 1)
+          p.write_text(text, encoding="utf-8")
+
+          p = Path("figure_renderer/README.md")
+          text = p.read_text(encoding="utf-8")
+          if "# Deadworlds Figure Renderer v0.5.0" not in text:
+              raise SystemExit("README v0.5 baseline missing")
+          text = text.replace("# Deadworlds Figure Renderer v0.5.0", "# Deadworlds Figure Renderer v0.6.0", 1)
+          text = text.replace(
+              "Renderer v0.5.0 currently supports 20 hosted recipes across Modules 1, 2, 3, 10, 12, and 15.",
+              "Renderer v0.6.0 currently supports 34 hosted recipes across Modules 1-6, 10, 12, and 15.",
+              1,
+          )
+          module10 = "### Module 10 — Technological Energetics\n"
+          if module10 not in text or "### Module 4 — Biomechanics Scaling" in text:
+              raise SystemExit("README Module 10 insertion baseline mismatch")
+          sections = '''### Module 4 — Biomechanics Scaling\n\n- `m04_gravity_jump_sensitivity`\n- `m04_froude_similarity_grid`\n- `m04_dynamic_pressure_grid`\n- `m04_terminal_velocity_grid`\n- `m04_lift_loading_grid`\n- `m04_self_weight_support_scaling`\n\nModule 4 renders explicit mechanics sensitivity grids only. Present-atmosphere aerodynamic calculations remain labeled `PRESENT_STATE_ONLY` and are never substituted for the unresolved biosphere-era medium. Launch speed, organism scale, gait transitions, ballistic coefficient, flight feasibility, wing loading, material strength, failure size, and locomotor power are not inferred.\n\n### Module 5 — Sensory Ecology\n\n- `m05_stellar_emission_peak_context`\n- `m05_acoustic_sound_speed_sensitivity`\n- `m05_diffraction_resolution_sensitivity`\n- `m05_channel_identifiability`\n\nModule 5 separates physical carrier context from evolved sensory biology. Wien-law stellar peaks are not surface spectra or receptor optima; present-medium sound-speed cases are not paleo acoustic active space; diffraction grids are not actual visual acuity. Carrier availability never becomes sensory prevalence or importance.\n\n### Module 6 — Non-acoustic Communication\n\n- `m06_channel_identifiability_matrix`\n- `m06_visual_angular_geometry_sensitivity`\n- `m06_sender_medium_receiver_prerequisites`\n- `m06_multimodal_constraint_map`\n\nModule 6 figures use only the public physical-carrier/prerequisite ledger. Hidden reconstructed sender or receiver biology is forbidden from FigureSpec bindings and public derived evidence. Sender and receiver prerequisites remain unresolved from public evidence; angular geometry does not become visibility or range, and the constraint map does not rank channels or infer evolved preference. Active magnetic signaling remains blocked by the v1 module policy.\n\n'''
+          text = text.replace(module10, sections + module10, 1)
+          p.write_text(text, encoding="utf-8")
+          PYCODE
+
+      - name: Verify release identity and recipe registry
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            figure_renderer/deadworlds_figures/adapters_04_06.py \
+            figure_renderer/deadworlds_figures/validate_04_06.py \
+            figure_renderer/tests/test_modules_04_06.py
+          python - <<'PYCODE'
+          import sys
+          sys.path.insert(0, "figure_renderer")
+          from deadworlds_figures import __version__
+          from deadworlds_figures.adapters import supported_recipes
+          from deadworlds_figures.schema import RENDERER_VERSION
+          assert __version__ == "0.6.0", __version__
+          assert RENDERER_VERSION == "deadworlds-figure-renderer-v0.6.0", RENDERER_VERSION
+          recipes = supported_recipes()
+          assert len(recipes) == 34, len(recipes)
+          for recipe in (
+              "m04_gravity_jump_sensitivity", "m04_froude_similarity_grid", "m04_dynamic_pressure_grid",
+              "m04_terminal_velocity_grid", "m04_lift_loading_grid", "m04_self_weight_support_scaling",
+              "m05_stellar_emission_peak_context", "m05_acoustic_sound_speed_sensitivity",
+              "m05_diffraction_resolution_sensitivity", "m05_channel_identifiability",
+              "m06_channel_identifiability_matrix", "m06_visual_angular_geometry_sensitivity",
+              "m06_sender_medium_receiver_prerequisites", "m06_multimodal_constraint_map",
+          ):
+              assert recipe in recipes, recipe
+          print(f"Renderer {RENDERER_VERSION} exposes {len(recipes)} explicit recipes.")
+          PYCODE
+          grep -Fq 'deadworlds-figure-renderer": "0.6.0"' .github/workflows/deadworlds-render-figure.yml
+          grep -Fq 'Renderer: `deadworlds-figure-renderer-v0.6.0`' .github/workflows/deadworlds-render-figure.yml
+          grep -Fq '"svg.hashsalt": "deadworlds-figure-renderer-v0.6.0"' figure_renderer/deadworlds_figures/styles.py
+          if grep -R -n -E 'deadworlds-figure-renderer-v0\.(4|5)\.0|Deadworlds Figure Renderer v0\.5\.0|version = "0\.5\.0"|__version__ = "0\.5\.0"' \
+              figure_renderer/deadworlds_figures figure_renderer/scripts figure_renderer/pyproject.toml \
+              figure_renderer/README.md figure_renderer/RENDERER_CONSTRAINTS.txt figure_renderer/tests \
+              .github/workflows/deadworlds-render-figure.yml; then
+            echo "Stale active renderer identity remains after v0.6 patch." >&2
+            exit 1
+          fi
+
+      - name: Install pinned renderer development stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install -c figure_renderer/RENDERER_CONSTRAINTS.txt -e './figure_renderer[dev]'
+
+      - name: Run focused Modules 4-6 renderer tests
+        run: pytest -q figure_renderer/tests/test_modules_04_06.py
+
+      - name: Run full renderer regression suite
+        run: pytest -q figure_renderer/tests
+
+      - name: Build and inspect v0.6 wheel
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf "$RUNNER_TEMP/deadworlds-v06-wheel"
+          mkdir -p "$RUNNER_TEMP/deadworlds-v06-wheel"
+          python -m pip wheel --no-deps ./figure_renderer -w "$RUNNER_TEMP/deadworlds-v06-wheel"
+          wheel="$(find "$RUNNER_TEMP/deadworlds-v06-wheel" -maxdepth 1 -name 'deadworlds_figure_renderer-0.6.0-*.whl' -print -quit)"
+          test -n "$wheel"
+          python - "$wheel" <<'PYCODE'
+          import hashlib, sys, zipfile
+          path=sys.argv[1]
+          raw=open(path,'rb').read()
+          print("wheel_sha256="+hashlib.sha256(raw).hexdigest())
+          with zipfile.ZipFile(path) as z:
+              metadata=[n for n in z.namelist() if n.endswith('.dist-info/METADATA')]
+              assert len(metadata)==1
+              text=z.read(metadata[0]).decode()
+              assert '\nVersion: 0.6.0\n' in text
+              assert 'deadworlds_figures/adapters_04_06.py' in z.namelist()
+              assert 'deadworlds_figures/validate_04_06.py' in z.namelist()
+          print("Validated v0.6 wheel contents and metadata.")
+          PYCODE
+
+      - name: Remove stale recovery workflows and this one-shot batch helper
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f \
+            .github/workflows/deadworlds-render-figure-v05-PERMANENT.yml \
+            .github/workflows/deadworlds-render-v05-hosted-e2e-FINAL.yml \
+            .github/workflows/deadworlds-render-v05-hosted-e2e-corrected.yml \
+            .github/workflows/deadworlds-render-v05-hosted-e2e-refresh.yml \
+            .github/workflows/deadworlds-renderer-v05-version-fix.yml \
+            .github/workflows/deadworlds-renderer-v06-m456-batch.yml
+          test -f .github/workflows/deadworlds-compute.yml
+          test -f .github/workflows/deadworlds-render-figure.yml
+          test -f .github/workflows/runner-tests.yml
+
+      - name: Commit and push the complete batch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          git status --short
+          git config user.name "Deadworlds batch workflow"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && { echo "No batch changes to commit." >&2; exit 1; }
+          git commit -m "Add Modules 4-6 deterministic renderer"
+          git push origin HEAD:main
+          echo "Pushed renderer v0.6.0 M4-M6 batch and removed temporary recovery workflows."
