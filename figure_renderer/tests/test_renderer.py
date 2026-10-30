@@ -20,7 +20,7 @@ def test_renderer_version_identity_is_consistent():
     from deadworlds_figures.schema import RENDERER_VERSION
 
     expected = f"deadworlds-figure-renderer-v{package_version}"
-    assert package_version == "0.6.0"
+    assert package_version == "0.7.0"
     assert RENDERER_VERSION == expected
 
 
@@ -54,14 +54,29 @@ def test_supported_recipe_set_is_explicit():
         "m06_multimodal_constraint_map",
         "m06_sender_medium_receiver_prerequisites",
         "m06_visual_angular_geometry_sensitivity",
+        "m09_pairwise_distance_matrix",
+        "m09_recovered_site_map",
+        "m09_sampling_and_recovery_context",
+        "m09_spatial_inference_prerequisite_matrix",
         "m10_energy_lower_bound_ledger",
         "m10_energy_power_identifiability",
         "m10_measurement_formula_provenance",
         "m10_process_trace_prerequisite_matrix",
         "m10_radiative_ceiling_vs_capture",
+        "m11a_demographic_inference_ladder",
+        "m11a_population_inference_prerequisites",
+        "m11a_proxy_concordance_matrix",
         "m12a_diversity_distance_by_phase",
         "m12a_trait_frequency_by_phase",
         "m12a_transmission_model_identifiability",
+        "m13a_alternative_explanation_matrix",
+        "m13a_comparison_provenance",
+        "m13a_corpus_readiness",
+        "m13a_direction_identifiability",
+        "m14a_decipherment_prerequisite_ladder",
+        "m14a_mark_inventory",
+        "m14a_model_handoff",
+        "m14a_sequence_reading_order",
         "m15a_adequacy_vs_preference_contract",
         "m15a_evaluation_method_eligibility",
         "m15a_validation_diagnostics",

@@ -22,7 +22,7 @@ _BASE_RC = {
     "lines.markersize": 4.5,
     "pdf.fonttype": 42,
     "ps.fonttype": 42,
-    "svg.hashsalt": "deadworlds-figure-renderer-v0.6.0",
+    "svg.hashsalt": "deadworlds-figure-renderer-v0.7.0",
 }
 
 

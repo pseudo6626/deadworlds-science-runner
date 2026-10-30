@@ -1,4 +1,4 @@
-# Deadworlds Figure Renderer v0.6.0
+# Deadworlds Figure Renderer v0.7.0
 
 Deterministic static scientific renderer for the Deadworlds `deadworlds-figure-spec-v1` contract.
 
@@ -6,7 +6,7 @@ The renderer does not invent numeric plot data. Numeric values come only from `F
 
 ## Hosted recipe coverage
 
-Renderer v0.6.0 currently supports 34 hosted recipes across Modules 1-6, 10, 12, and 15.
+Renderer v0.7.0 currently supports 49 hosted recipes across Modules 1-6, 9-15 except Modules 7-8 and the blocked M11 settlement-posterior recipe.
 
 ### Module 1 — Atmospheric Evolution
 
@@ -60,6 +60,42 @@ Module 5 separates physical carrier context from evolved sensory biology. Wien-l
 - `m06_multimodal_constraint_map`
 
 Module 6 figures use only the public physical-carrier/prerequisite ledger. Hidden reconstructed sender or receiver biology is forbidden from FigureSpec bindings and public derived evidence. Sender and receiver prerequisites remain unresolved from public evidence; angular geometry does not become visibility or range, and the constraint map does not rank channels or infer evolved preference. Active magnetic signaling remains blocked by the v1 module policy.
+
+
+### Module 9 — Spatial Archaeology
+
+- `m09_recovered_site_map`
+- `m09_pairwise_distance_matrix`
+- `m09_sampling_and_recovery_context`
+- `m09_spatial_inference_prerequisite_matrix`
+
+Module 9 renders recovered-site geometry, descriptive distances, survey context, and blocked-analysis prerequisites only. Single-point site markers never become routes or networks; recovered-site density never becomes ancient settlement density; local survey grids are never promoted to planetary coordinates.
+
+### Module 11 — Demography
+
+- `m11a_proxy_concordance_matrix`
+- `m11a_population_inference_prerequisites`
+- `m11a_demographic_inference_ladder`
+
+Module 11 keeps recovered proxies, relative trends, minimum-individual evidence, and calibrated population at distinct epistemic levels. Hosted figures expose readiness/status only and never convert a proxy directly into population. `m11a_settlement_proxy_by_phase` remains blocked until chronology and sampling uncertainty are actually propagated.
+
+### Module 13 — Language Contact
+
+- `m13a_corpus_readiness`
+- `m13a_alternative_explanation_matrix`
+- `m13a_direction_identifiability`
+- `m13a_comparison_provenance`
+
+Module 13 renders recovered-corpus readiness and later-model eligibility only. It does not emit borrowing/contact probabilities, donor-recipient assignments, contact edges, social networks, or preferred models.
+
+### Module 14 — Inscription Decipherment
+
+- `m14a_mark_inventory`
+- `m14a_sequence_reading_order`
+- `m14a_decipherment_prerequisite_ladder`
+- `m14a_model_handoff`
+
+Module 14 renders formal recovered mark structure and analysis prerequisites only. It never emits sign values, phonetic or semantic assignments, translations, script classifications, or model winners.
 
 ### Module 10 — Technological Energetics
 
